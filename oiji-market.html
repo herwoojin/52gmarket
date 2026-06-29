@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c1410">
+<title>오이(52)지마켓</title>
+<style>
+  :root{
+    /* 오이 팔레트 — 진한 오이껍질 다크 + 신선한 속살 */
+    --skin-0:#0a120d;      /* 가장 어두운 배경 */
+    --skin-1:#0e1813;      /* 카드 배경 */
+    --skin-2:#14241b;      /* 떠있는 표면 */
+    --skin-line:#22382b;   /* 경계선 */
+    --cuke:#52c06e;        /* 메인 오이 그린 */
+    --cuke-bright:#73d98a; /* 밝은 강조 */
+    --flesh:#cfe8a6;       /* 속살 옐로그린 */
+    --seed:#f2ecd2;        /* 씨앗 크림 */
+    --ink:#e9f2e8;         /* 본문 텍스트 */
+    --muted:#8ba596;       /* 보조 텍스트 */
+    --warn:#f2b84b;        /* 나눔 노랑 */
+    --pay:#3182f6;         /* 토스 블루 */
+    --radius:18px;
+    --shadow:0 8px 30px rgba(0,0,0,.45);
+    --font:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--skin-0);color:var(--ink);font-family:var(--font);
+    -webkit-font-smoothing:antialiased}
+  body{max-width:920px;margin:0 auto;min-height:100vh;position:relative;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,textarea,select{font-family:inherit}
+  img{display:block}
+  ::-webkit-scrollbar{width:0;height:0}
+
+  /* ---------- 헤더 ---------- */
+  header.app{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,rgba(10,18,13,.97),rgba(10,18,13,.86));
+    backdrop-filter:blur(12px);padding:calc(env(safe-area-inset-top) + 14px) 18px 12px;
+    border-bottom:1px solid var(--skin-line)}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand .logo{width:42px;height:42px;flex:0 0 42px}
+  .brand h1{font-size:19px;margin:0;letter-spacing:-.4px;font-weight:800}
+  .brand h1 b{color:var(--cuke-bright)}
+  .brand .sub{font-size:11.5px;color:var(--muted);margin-top:2px;letter-spacing:-.2px}
+  .me-chip{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--skin-2);
+    border:1px solid var(--skin-line);padding:6px 11px 6px 7px;border-radius:999px;font-size:12px}
+  .me-chip .av{width:24px;height:24px;border-radius:50%;background:var(--cuke);display:grid;place-items:center;
+    font-size:13px}
+  .me-chip b{color:var(--cuke-bright);font-weight:700}
+
+  /* ---------- 뷰 ---------- */
+  .view{padding:16px 18px 8px;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .hidden{display:none!important}
+
+  .row{display:flex;gap:10px;align-items:center}
+  .section-title{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:-.2px;
+    margin:18px 2px 10px;display:flex;align-items:center;gap:7px}
+  .section-title .dot{width:5px;height:5px;border-radius:50%;background:var(--cuke)}
+
+  /* 필터칩 */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;margin:0 -2px}
+  .chip{flex:0 0 auto;padding:8px 14px;border-radius:999px;background:var(--skin-1);
+    border:1px solid var(--skin-line);font-size:13px;color:var(--muted);font-weight:600;transition:.15s}
+  .chip.on{background:var(--cuke);color:#06120a;border-color:var(--cuke)}
+
+  /* 상품 그리드 */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:12px}
+  @media(min-width:620px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .card{background:var(--skin-1);border:1px solid var(--skin-line);border-radius:var(--radius);
+    overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .card .thumb{aspect-ratio:1/1;background:var(--skin-2);position:relative;overflow:hidden}
+  .card .thumb img{width:100%;height:100%;object-fit:cover}
+  .card .thumb .ph{width:100%;height:100%;display:grid;place-items:center;font-size:40px;opacity:.4}
+  .badge{position:absolute;top:9px;left:9px;padding:4px 9px;border-radius:8px;font-size:11px;font-weight:800;
+    letter-spacing:-.2px}
+  .badge.share{background:var(--warn);color:#3a2800}
+  .badge.sale{background:rgba(8,18,12,.82);color:var(--flesh);border:1px solid var(--cuke)}
+  .badge.done{background:#444f48;color:#cfd9d2}
+  .jjim-btn{position:absolute;top:7px;right:7px;width:34px;height:34px;border-radius:50%;
+    background:rgba(8,16,11,.6);backdrop-filter:blur(4px);display:grid;place-items:center;font-size:16px;
+    border:1px solid rgba(255,255,255,.08)}
+  .jjim-btn.on{background:var(--cuke);border-color:var(--cuke)}
+  .card .body{padding:10px 11px 12px}
+  .card .title{font-size:13.5px;font-weight:700;line-height:1.3;letter-spacing:-.3px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px}
+  .card .price{font-size:15px;font-weight:800;margin-top:6px}
+  .card .price.free{color:var(--warn)}
+  .card .meta{font-size:11px;color:var(--muted);margin-top:7px;display:flex;align-items:center;gap:5px;
+    flex-wrap:wrap}
+  .card .meta .loc{display:inline-flex;align-items:center;gap:3px}
+  .card .meta .nick{color:var(--cuke-bright);font-weight:600}
+  .card .stat{font-size:11px;color:var(--muted);margin-top:8px;display:flex;gap:11px}
+
+  /* ---------- 올리기 폼 ---------- */
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink)}
+  .field .hint{font-size:11.5px;color:var(--muted);font-weight:400;margin-left:6px}
+  .field input[type=text],.field input[type=number],.field textarea,.field select{
+    width:100%;background:var(--skin-1);border:1px solid var(--skin-line);border-radius:13px;
+    padding:13px 14px;color:var(--ink);font-size:15px;outline:none;transition:.15s}
+  .field textarea{resize:vertical;min-height:84px;line-height:1.5}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--cuke)}
+  .field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238ba596' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 15px center}
+  .seg{display:flex;gap:8px}
+  .seg button{flex:1;padding:13px;border-radius:13px;background:var(--skin-1);border:1px solid var(--skin-line);
+    font-size:14px;font-weight:700;color:var(--muted);transition:.15s}
+  .seg button.on{background:var(--cuke);color:#06120a;border-color:var(--cuke)}
+
+  /* 사진 업로드 + WEBP */
+  .dropzone{border:1.5px dashed var(--skin-line);border-radius:var(--radius);padding:22px;text-align:center;
+    background:var(--skin-1);transition:.15s}
+  .dropzone:active{border-color:var(--cuke)}
+  .dropzone .ic{font-size:34px;margin-bottom:8px}
+  .dropzone .t{font-size:14px;font-weight:700}
+  .dropzone .d{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .preview{margin-top:12px;display:flex;gap:12px;align-items:center}
+  .preview img{width:88px;height:88px;border-radius:14px;object-fit:cover;border:1px solid var(--skin-line)}
+  .conv-info{flex:1;font-size:12px;line-height:1.6}
+  .conv-info .pill{display:inline-block;background:var(--skin-2);border:1px solid var(--skin-line);
+    border-radius:7px;padding:2px 7px;margin:2px 4px 2px 0;font-size:11px}
+  .conv-info .save{color:var(--cuke-bright);font-weight:800}
+
+  .btn-primary{width:100%;padding:16px;border-radius:15px;background:var(--cuke);color:#06120a;
+    font-size:16px;font-weight:800;letter-spacing:-.3px;transition:.15s}
+  .btn-primary:active{transform:scale(.98)}
+  .btn-primary:disabled{opacity:.4}
+  .btn-ghost{width:100%;padding:14px;border-radius:15px;background:var(--skin-1);border:1px solid var(--skin-line);
+    font-size:15px;font-weight:700;color:var(--ink)}
+
+  /* ---------- 항아리(찜) ---------- */
+  .jar-hero{background:linear-gradient(160deg,var(--skin-2),var(--skin-1));border:1px solid var(--skin-line);
+    border-radius:var(--radius);padding:20px;display:flex;align-items:center;gap:16px;margin-bottom:6px}
+  .jar-hero .jaric{width:64px;height:64px;flex:0 0 64px}
+  .jar-hero h2{margin:0;font-size:17px;letter-spacing:-.4px}
+  .jar-hero p{margin:5px 0 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .jar-hero b{color:var(--cuke-bright)}
+
+  /* ---------- 알림 ---------- */
+  .keyword-box{background:var(--skin-1);border:1px solid var(--skin-line);border-radius:var(--radius);padding:16px}
+  .kw-add{display:flex;gap:8px;margin-top:12px}
+  .kw-add input{flex:1}
+  .kw-add button{flex:0 0 auto;padding:0 18px;border-radius:13px;background:var(--cuke);color:#06120a;
+    font-weight:800;font-size:14px}
+  .kw-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .kw-tag{display:inline-flex;align-items:center;gap:7px;background:var(--skin-2);border:1px solid var(--cuke);
+    border-radius:999px;padding:7px 8px 7px 13px;font-size:13px;font-weight:600}
+  .kw-tag .x{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;
+    place-items:center;font-size:13px;color:var(--muted)}
+  .noti-item{background:var(--skin-1);border:1px solid var(--skin-line);border-radius:14px;padding:13px 14px;
+    margin-top:10px;display:flex;gap:11px;align-items:flex-start}
+  .noti-item.unread{border-color:var(--cuke)}
+  .noti-item .nic{width:36px;height:36px;border-radius:11px;background:var(--skin-2);display:grid;
+    place-items:center;font-size:18px;flex:0 0 36px}
+  .noti-item .nt{font-size:13.5px;font-weight:700;line-height:1.4}
+  .noti-item .nd{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+  /* ---------- 내정보 ---------- */
+  .profile-card{background:var(--skin-1);border:1px solid var(--skin-line);border-radius:var(--radius);padding:18px}
+  .profile-card .av{width:60px;height:60px;border-radius:50%;background:var(--cuke);display:grid;
+    place-items:center;font-size:30px;margin-bottom:12px}
+  .info-note{font-size:11.5px;color:var(--muted);line-height:1.6;margin-top:8px;
+    background:var(--skin-2);border-radius:12px;padding:11px 13px;border:1px solid var(--skin-line)}
+
+  /* ---------- 바텀 탭 ---------- */
+  nav.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:920px;z-index:50;
+    background:linear-gradient(180deg,rgba(14,24,19,.92),rgba(10,18,13,.99));backdrop-filter:blur(14px);
+    border-top:1px solid var(--skin-line);display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  nav.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;
+    color:var(--muted);position:relative}
+  nav.tabbar button .ti{font-size:21px;line-height:1}
+  nav.tabbar button .tl{font-size:10px;font-weight:700;letter-spacing:-.2px}
+  nav.tabbar button.on{color:var(--cuke-bright)}
+  nav.tabbar button .nbadge{position:absolute;top:0;right:50%;margin-right:-22px;min-width:16px;height:16px;
+    padding:0 4px;border-radius:8px;background:var(--warn);color:#3a2800;font-size:10px;font-weight:800;
+    display:grid;place-items:center}
+  .fab-up{transform:translateY(-10px)}
+  .fab-up .ti{width:46px;height:46px;border-radius:16px;background:var(--cuke);color:#06120a;display:grid;
+    place-items:center;font-size:26px;box-shadow:0 6px 18px rgba(82,192,110,.4)}
+  .fab-up.on .ti{background:var(--cuke-bright)}
+
+  /* ---------- 상세 / 채팅 / 결제 시트 ---------- */
+  .sheet-back{position:fixed;inset:0;z-index:60;background:rgba(4,8,6,.65);backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;animation:fade .2s}
+  .sheet{width:100%;max-width:920px;max-height:94vh;background:var(--skin-0);border-radius:24px 24px 0 0;
+    border-top:1px solid var(--skin-line);overflow-y:auto;animation:slideup .28s cubic-bezier(.2,.8,.2,1);
+    display:flex;flex-direction:column}
+  @keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
+  .sheet-head{position:sticky;top:0;background:var(--skin-0);padding:14px 18px;display:flex;align-items:center;
+    gap:10px;border-bottom:1px solid var(--skin-line);z-index:5}
+  .sheet-head .grip{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:40px;height:4px;
+    border-radius:3px;background:var(--skin-line)}
+  .sheet-head h3{margin:0;font-size:15px;font-weight:800;letter-spacing:-.3px}
+  .sheet-head .close{margin-left:auto;width:32px;height:32px;border-radius:50%;background:var(--skin-2);
+    display:grid;place-items:center;font-size:16px;color:var(--muted)}
+
+  .detail-img{aspect-ratio:1/1;background:var(--skin-2);position:relative}
+  .detail-img img{width:100%;height:100%;object-fit:cover}
+  .detail-img .ph{width:100%;height:100%;display:grid;place-items:center;font-size:64px;opacity:.4}
+  .detail-body{padding:18px}
+  .detail-body .dtitle{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1.3}
+  .detail-body .dprice{font-size:24px;font-weight:800;margin:10px 0 4px}
+  .detail-body .dprice.free{color:var(--warn)}
+  .detail-meta{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .detail-meta span{background:var(--skin-2);border:1px solid var(--skin-line);border-radius:9px;
+    padding:6px 11px;font-size:12px;color:var(--muted)}
+  .detail-meta span b{color:var(--cuke-bright)}
+  .ddesc{font-size:14px;line-height:1.7;color:#cdddd1;margin:14px 0;white-space:pre-wrap}
+  .detail-actions{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--skin-0) 22%);
+    padding:14px 18px calc(16px + env(safe-area-inset-bottom));display:flex;gap:10px}
+  .detail-actions .jbtn{flex:0 0 56px;height:54px;border-radius:15px;background:var(--skin-1);
+    border:1px solid var(--skin-line);font-size:22px;display:grid;place-items:center}
+  .detail-actions .jbtn.on{background:rgba(82,192,110,.15);border-color:var(--cuke)}
+  .detail-actions .chat{flex:1;height:54px;border-radius:15px;background:var(--skin-1);border:1px solid var(--cuke);
+    color:var(--cuke-bright);font-weight:800;font-size:15px}
+  .detail-actions .buy{flex:1.4;height:54px;border-radius:15px;background:var(--cuke);color:#06120a;
+    font-weight:800;font-size:15px}
+
+  /* 채팅 */
+  .chat-wrap{flex:1;display:flex;flex-direction:column;min-height:60vh}
+  .chat-prod{display:flex;gap:11px;padding:12px 16px;border-bottom:1px solid var(--skin-line);align-items:center;
+    background:var(--skin-1)}
+  .chat-prod img,.chat-prod .ph{width:46px;height:46px;border-radius:11px;object-fit:cover;flex:0 0 46px;
+    background:var(--skin-2);display:grid;place-items:center;font-size:22px}
+  .chat-prod .ct{font-size:13.5px;font-weight:700;line-height:1.3}
+  .chat-prod .cp{font-size:12.5px;font-weight:800;color:var(--cuke-bright);margin-top:2px}
+  .chat-log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:76%;padding:10px 13px;border-radius:15px;font-size:14px;line-height:1.5;word-break:break-word}
+  .msg.them{align-self:flex-start;background:var(--skin-2);border:1px solid var(--skin-line);
+    border-bottom-left-radius:5px}
+  .msg.me{align-self:flex-end;background:var(--cuke);color:#06120a;border-bottom-right-radius:5px;font-weight:500}
+  .msg .who{font-size:10.5px;color:var(--muted);margin-bottom:3px;font-weight:700}
+  .msg.me .who{color:#0a3318}
+  .sys-msg{align-self:center;font-size:11.5px;color:var(--muted);background:var(--skin-1);
+    border:1px solid var(--skin-line);border-radius:999px;padding:5px 13px}
+  .chat-input{display:flex;gap:8px;padding:12px 14px calc(14px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--skin-line);background:var(--skin-0);position:sticky;bottom:0}
+  .chat-input input{flex:1;background:var(--skin-1);border:1px solid var(--skin-line);border-radius:999px;
+    padding:12px 16px;color:var(--ink);font-size:15px;outline:none}
+  .chat-input input:focus{border-color:var(--cuke)}
+  .chat-input .send{flex:0 0 46px;height:46px;border-radius:50%;background:var(--cuke);color:#06120a;
+    font-size:18px;display:grid;place-items:center}
+  .chat-quick{display:flex;gap:7px;padding:0 14px 10px;flex-wrap:wrap}
+  .chat-quick button{font-size:12px;padding:7px 12px;border-radius:999px;background:var(--skin-1);
+    border:1px solid var(--skin-line);color:var(--cuke-bright);font-weight:600}
+
+  /* 결제 시트 */
+  .pay-body{padding:20px}
+  .pay-sum{background:var(--skin-1);border:1px solid var(--skin-line);border-radius:16px;padding:16px;
+    margin-bottom:18px}
+  .pay-sum .l{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;color:var(--muted)}
+  .pay-sum .l b{color:var(--ink)}
+  .pay-sum .total{display:flex;justify-content:space-between;font-size:17px;font-weight:800;
+    border-top:1px solid var(--skin-line);margin-top:8px;padding-top:12px}
+  .pay-sum .total b{color:var(--cuke-bright)}
+  .pay-method{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
+  .pay-opt{display:flex;align-items:center;gap:12px;padding:15px;border-radius:14px;background:var(--skin-1);
+    border:1.5px solid var(--skin-line);font-size:15px;font-weight:700;transition:.15s}
+  .pay-opt.on{border-color:var(--cuke)}
+  .pay-opt .logo{width:40px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:12px;
+    font-weight:800;flex:0 0 40px}
+  .pay-opt .logo.toss{background:var(--pay);color:#fff}
+  .pay-opt .logo.stripe{background:#635bff;color:#fff}
+  .pay-opt .logo.paypal{background:#fff;color:#003087;font-style:italic}
+  .pay-opt .rd{margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid var(--skin-line)}
+  .pay-opt.on .rd{border-color:var(--cuke);background:radial-gradient(var(--cuke) 40%,transparent 46%)}
+  .pay-note{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.6}
+
+  /* 토스트 */
+  .toast{position:fixed;bottom:calc(92px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+    background:var(--seed);color:#1c2419;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:700;
+    z-index:90;box-shadow:var(--shadow);animation:toastin .3s;max-width:90%;text-align:center}
+  @keyframes toastin{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1}}
+
+  .empty{text-align:center;padding:48px 20px;color:var(--muted)}
+  .empty .eic{font-size:48px;margin-bottom:12px;opacity:.7}
+  .empty .et{font-size:14px;font-weight:700;color:var(--ink)}
+  .empty .ed{font-size:12.5px;margin-top:6px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header class="app">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <ellipse cx="24" cy="24" rx="11" ry="20" transform="rotate(38 24 24)" fill="#3a9c54"/>
+      <ellipse cx="24" cy="24" rx="7.5" ry="16.5" transform="rotate(38 24 24)" fill="#73d98a"/>
+      <g fill="#2d7a40" opacity=".55">
+        <circle cx="17" cy="16" r="1.1"/><circle cx="21" cy="13" r="1"/><circle cx="14" cy="22" r="1"/>
+        <circle cx="30" cy="33" r="1.1"/><circle cx="34" cy="29" r="1"/><circle cx="27" cy="36" r="1"/>
+      </g>
+      <circle cx="19" cy="20" r="2.4" fill="#0a120d"/><circle cx="27" cy="26" r="2.4" fill="#0a120d"/>
+      <circle cx="19.8" cy="19.2" r=".8" fill="#fff"/><circle cx="27.8" cy="25.2" r=".8" fill="#fff"/>
+      <path d="M21 27 q3 3 6 0" stroke="#0a120d" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>오이<b>(52)</b>지마켓</h1>
+      <div class="sub">사내 안 쓰는 소모품, 버리지 말고 항아리에 🥒</div>
+    </div>
+    <div class="me-chip" id="meChip">
+      <span class="av">🥒</span><span>닉네임 <b id="meNick">오이박사</b></span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 홈 ============ -->
+<section class="view" id="view-home">
+  <div class="chips" id="catChips">
+    <button class="chip on" data-cat="전체">전체</button>
+    <button class="chip" data-cat="전산소모품">💾 전산소모품</button>
+    <button class="chip" data-cat="사무용품">📎 사무용품</button>
+    <button class="chip" data-cat="가구/비품">🪑 가구/비품</button>
+    <button class="chip" data-cat="기타">📦 기타</button>
+  </div>
+  <div class="chips" style="margin-top:4px">
+    <button class="chip on" data-deal="전체" id="dealAll">거래 전체</button>
+    <button class="chip" data-deal="나눔">🤲 무료나눔</button>
+    <button class="chip" data-deal="판매">💰 판매</button>
+  </div>
+  <div class="section-title"><span class="dot"></span><span id="homeCount">신선한 매물</span></div>
+  <div class="grid" id="productGrid"></div>
+</section>
+
+<!-- ============ 올리기 ============ -->
+<section class="view hidden" id="view-upload">
+  <div class="section-title"><span class="dot"></span>매물 올리기</div>
+  <div class="field">
+    <label>사진 <span class="hint">올리면 자동으로 WEBP 변환 → 용량 최소화</span></label>
+    <label class="dropzone" for="photoInput" id="dropzone">
+      <div class="ic">📷</div>
+      <div class="t">사진 선택 / 촬영</div>
+      <div class="d">JPG·PNG → WEBP 자동 변환</div>
+    </label>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+    <div class="preview hidden" id="preview">
+      <img id="previewImg" alt="미리보기">
+      <div class="conv-info" id="convInfo"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>제목</label>
+    <input type="text" id="upTitle" placeholder="예) 새 토너 카트리지 (HP 26A) 미개봉">
+  </div>
+  <div class="field">
+    <label>카테고리</label>
+    <select id="upCat">
+      <option value="전산소모품">💾 전산소모품 (토너·잉크·케이블 등)</option>
+      <option value="사무용품">📎 사무용품 (문구·용지 등)</option>
+      <option value="가구/비품">🪑 가구/비품</option>
+      <option value="기타">📦 기타</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>거래 방식</label>
+    <div class="seg" id="upDeal">
+      <button class="on" data-d="나눔">🤲 무료 나눔</button>
+      <button data-d="판매">💰 판매</button>
+    </div>
+  </div>
+  <div class="field hidden" id="priceField">
+    <label>판매 단가 <span class="hint">원 단위</span></label>
+    <input type="number" id="upPrice" placeholder="예) 5000" inputmode="numeric">
+  </div>
+  <div class="field">
+    <label>근무지 <span class="hint">픽업 위치로 노출됩니다</span></label>
+    <select id="upLoc">
+      <option>본사 3층 IT운영팀</option>
+      <option>본사 5층 전략기획실</option>
+      <option>강남지역사무소</option>
+      <option>수도권북부 물류센터</option>
+      <option>영남지역사무소</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>설명</label>
+    <textarea id="upDesc" placeholder="상태, 수량, 픽업 가능 시간 등을 적어주세요."></textarea>
+  </div>
+  <button class="btn-primary" id="submitBtn">항아리에 올리기 🥒</button>
+  <div style="height:14px"></div>
+  <div class="info-note">📍 올린 매물에는 <b style="color:var(--cuke-bright)">닉네임</b>과 <b style="color:var(--cuke-bright)">근무지</b>만 노출되고, 실명은 표시되지 않습니다.</div>
+</section>
+
+<!-- ============ 오이지 항아리(찜) ============ -->
+<section class="view hidden" id="view-jar">
+  <div class="jar-hero">
+    <svg class="jaric" viewBox="0 0 64 64" fill="none">
+      <rect x="14" y="22" width="36" height="34" rx="9" fill="#2a4233" stroke="#52c06e" stroke-width="2"/>
+      <rect x="14" y="30" width="36" height="26" rx="6" fill="#3a6e48" opacity=".5"/>
+      <rect x="18" y="16" width="28" height="8" rx="4" fill="#73d98a"/>
+      <g fill="#cfe8a6"><ellipse cx="26" cy="42" rx="3" ry="8" transform="rotate(20 26 42)"/>
+      <ellipse cx="36" cy="44" rx="3" ry="8" transform="rotate(-25 36 44)"/>
+      <ellipse cx="31" cy="48" rx="2.6" ry="7" transform="rotate(8 31 48)"/></g>
+    </svg>
+    <div>
+      <h2>오이지 항아리</h2>
+      <p>찜해둔 매물을 모아 절였어요. <b id="jarCount">0</b>개가 담겨 있어요.</p>
+    </div>
+  </div>
+  <div class="section-title"><span class="dot"></span>담아둔 매물</div>
+  <div class="grid" id="jarGrid"></div>
+  <div class="empty hidden" id="jarEmpty">
+    <div class="eic">🫙</div>
+    <div class="et">항아리가 비었어요</div>
+    <div class="ed">마음에 드는 매물의 🥒 버튼을 눌러<br>오이지 항아리에 담아보세요.</div>
+  </div>
+</section>
+
+<!-- ============ 알림 ============ -->
+<section class="view hidden" id="view-noti">
+  <div class="section-title"><span class="dot"></span>찾는 물건 알림 받기</div>
+  <div class="keyword-box">
+    <div style="font-size:13px;line-height:1.6">필요한 물건의 <b style="color:var(--cuke-bright)">키워드</b>를 등록하면, 해당 매물이 올라왔을 때 바로 알려드려요.</div>
+    <div class="kw-add">
+      <input type="text" id="kwInput" placeholder="예) 토너, A4용지, HDMI 케이블">
+      <button id="kwAddBtn">추가</button>
+    </div>
+    <div class="kw-list" id="kwList"></div>
+    <button class="btn-ghost" id="enablePush" style="margin-top:14px">🔔 기기 푸시 알림 켜기</button>
+  </div>
+  <div class="section-title"><span class="dot"></span>받은 알림</div>
+  <div id="notiList"></div>
+  <div class="empty" id="notiEmpty">
+    <div class="eic">🔔</div>
+    <div class="et">아직 받은 알림이 없어요</div>
+    <div class="ed">키워드를 등록하고, 매물을 올려보면<br>알림이 어떻게 오는지 체험할 수 있어요.</div>
+  </div>
+</section>
+
+<!-- ============ 내정보 ============ -->
+<section class="view hidden" id="view-me">
+  <div class="profile-card">
+    <div class="av">🥒</div>
+    <div class="field" style="margin-bottom:14px">
+      <label>닉네임 <span class="hint">매물에 이 이름만 노출됩니다</span></label>
+      <input type="text" id="setNick" value="오이박사">
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>내 근무지 <span class="hint">실명 대신 위치만 공개</span></label>
+      <select id="setLoc">
+        <option>본사 3층 IT운영팀</option>
+        <option>본사 5층 전략기획실</option>
+        <option>강남지역사무소</option>
+        <option>수도권북부 물류센터</option>
+        <option>영남지역사무소</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn-primary" id="saveProfile" style="margin-top:14px">저장</button>
+  <button class="btn-ghost" id="googleLogin" style="margin-top:10px;display:none">
+    <span style="display:inline-flex;align-items:center;gap:8px;justify-content:center;width:100%">
+      <span style="background:#fff;color:#444;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:13px">G</span>
+      <span id="googleLoginLabel">구글로 로그인</span>
+    </span>
+  </button>
+  <div class="info-note" style="margin-top:14px">
+    🔒 <b style="color:var(--cuke-bright)">실명은 어디에도 노출되지 않습니다.</b> 다른 직원에게는 닉네임과 근무지(픽업 위치)만 보여요.
+  </div>
+  <div class="info-note" style="margin-top:10px">
+    📱 이 앱은 PWA로 설계되어, 모바일 브라우저의 <b style="color:var(--cuke-bright)">"홈 화면에 추가"</b>로 앱처럼 설치할 수 있습니다. (실제 설치·푸시는 서버 배포 후 활성화)
+  </div>
+</section>
+
+<!-- 바텀 탭 -->
+<nav class="tabbar">
+  <button class="on" data-tab="home"><span class="ti">🏠</span><span class="tl">홈</span></button>
+  <button data-tab="jar"><span class="ti">🫙</span><span class="tl">항아리</span></button>
+  <button class="fab-up" data-tab="upload"><span class="ti">＋</span></button>
+  <button data-tab="noti"><span class="ti">🔔</span><span class="tl">알림</span><span class="nbadge hidden" id="tabNotiBadge">0</span></button>
+  <button data-tab="me"><span class="ti">🙂</span><span class="tl">내정보</span></button>
+</nav>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<!-- ===== 백엔드 연동: Firebase(구글로그인·Storage) + Apps Script(구글시트) ===== -->
+<!-- configured:false 면 데모 데이터로 동작합니다. 설정값을 채우고 true 로 바꾸세요. -->
+<script>
+const OIJI_CONFIG = {
+  configured: false,                       // ← 백엔드 연결 시 true
+  appsScriptUrl: "https://script.google.com/macros/s/____/exec",
+  apiToken: "____API_TOKEN____",
+  firebase: {
+    apiKey:"____", authDomain:"____.firebaseapp.com", projectId:"____",
+    storageBucket:"____.appspot.com", appId:"____"
+  }
+};
+</script>
+<script>
+if (OIJI_CONFIG.configured) {
+  document.write('<scr'+'ipt src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></scr'+'ipt>');
+  document.write('<scr'+'ipt src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></scr'+'ipt>');
+  document.write('<scr'+'ipt src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></scr'+'ipt>');
+}
+</script>
+<script>
+window.Oiji = {
+  enabled: OIJI_CONFIG.configured,
+  user: null,
+  init() {
+    if (!this.enabled || !window.firebase) { this.enabled = false; return; }
+    firebase.initializeApp(OIJI_CONFIG.firebase);
+    firebase.auth().onAuthStateChanged(u => {
+      this.user = u;
+      if (window._onAuthChange) window._onAuthChange(u);
+    });
+  },
+  async signIn() {
+    const p = new firebase.auth.GoogleAuthProvider();
+    const r = await firebase.auth().signInWithPopup(p);
+    return r.user;
+  },
+  signOut() { return firebase.auth().signOut(); },
+  // 시트 → 앱 (목록 읽기)
+  async list() {
+    const res = await fetch(OIJI_CONFIG.appsScriptUrl);
+    const d = await res.json();
+    return (d.items || []).map(o => ({
+      id:o.id, emoji:'🥒', title:o.title, cat:o.category, deal:o.deal,
+      price:o.price, loc:o.loc, nick:o.nick, desc:o.desc,
+      img:o.photoURL||null, jjim:o.jjim, chats:o.chats,
+      sold:o.status==='거래완료'
+    }));
+  },
+  // WEBP Blob → Firebase Storage (다운로드 URL 반환)
+  async uploadPhoto(blob) {
+    const ref = firebase.storage().ref('listings/' + Date.now() + '.webp');
+    await ref.put(blob, { contentType: 'image/webp' });
+    return ref.getDownloadURL();
+  },
+  // 앱 → 시트 (등록)
+  async create(item) { return this._post({ action:'create', item }); },
+  async update(id, patch) { return this._post({ action:'update', id, patch }); },
+  async remove(id) { return this._post({ action:'delete', id }); },
+  async _post(payload) {
+    payload.token = OIJI_CONFIG.apiToken;
+    const res = await fetch(OIJI_CONFIG.appsScriptUrl, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // CORS preflight 회피
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+};
+</script>
+
+<script>
+/* ============================================================
+   오이(52)지마켓 — 프로토타입 (인메모리 상태)
+   ============================================================ */
+const state = {
+  me:{nick:'오이박사', loc:'본사 3층 IT운영팀'},
+  cat:'전체', deal:'전체',
+  keywords:['토너','A4용지'],
+  notis:[],
+  chats:{},        // productId -> [{who,me,text}]
+  products:[]
+};
+
+/* 시드 데이터 */
+const SEED = [
+  {id:'p1',emoji:'🖨️',title:'HP 26A 정품 토너 (미개봉 신품)',cat:'전산소모품',deal:'판매',price:38000,loc:'본사 5층 전략기획실',nick:'프린터요정',desc:'프린터 교체로 안 쓰게 된 미개봉 토너입니다.\n구매가 6.2만 → 3.8만에 넘겨요. 5층에서 픽업 가능.',jjim:7,chats:3},
+  {id:'p2',emoji:'📦',title:'A4 복사용지 2박스 무료나눔',cat:'사무용품',deal:'나눔',price:0,loc:'강남지역사무소',nick:'종이부자',desc:'사무실 정리하다 남은 A4용지 2박스 나눔합니다. 선착순!',jjim:12,chats:5},
+  {id:'p3',emoji:'🔌',title:'HDMI 케이블 2m 새것 3개',cat:'전산소모품',deal:'나눔',price:0,loc:'본사 3층 IT운영팀',nick:'케이블장인',desc:'프로젝터 행사 끝나고 남은 새 케이블입니다. 필요한 분 가져가세요.',jjim:4,chats:1},
+  {id:'p4',emoji:'🪑',title:'시디즈 사무용 의자 (상태 좋음)',cat:'가구/비품',deal:'판매',price:45000,loc:'수도권북부 물류센터',nick:'앉음새',desc:'재택 전환으로 안 쓰게 됐어요. 바퀴 멀쩡, 등받이 양호.',jjim:9,chats:6},
+  {id:'p5',emoji:'🖊️',title:'모나미 153 볼펜 한 통(미사용)',cat:'사무용품',deal:'나눔',price:0,loc:'영남지역사무소',nick:'문구덕후',desc:'단체구매 후 남은 볼펜 통째로 나눔합니다.',jjim:3,chats:0},
+  {id:'p6',emoji:'⌨️',title:'기계식 키보드 (적축, 거의새것)',cat:'전산소모품',deal:'판매',price:25000,loc:'본사 3층 IT운영팀',nick:'타건성애자',desc:'손에 안 맞아 내놓습니다. 박스·설명서 포함.',jjim:15,chats:8}
+];
+state.products = SEED.map(p=>({...p}));
+
+/* ---------- 유틸 ---------- */
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const won=n=>n.toLocaleString('ko-KR');
+function toast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  $('#toastRoot').appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300)},1800);
+}
+
+/* ---------- 탭 전환 ---------- */
+$$('nav.tabbar button').forEach(b=>b.addEventListener('click',()=>{
+  const tab=b.dataset.tab;
+  $$('nav.tabbar button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.view').forEach(v=>v.classList.add('hidden'));
+  $('#view-'+tab).classList.remove('hidden');
+  window.scrollTo(0,0);
+  if(tab==='jar')renderJar();
+  if(tab==='noti')renderNoti();
+}));
+
+/* ---------- 홈: 필터 ---------- */
+$('#catChips').addEventListener('click',e=>{
+  const b=e.target.closest('.chip');if(!b)return;
+  $$('#catChips .chip').forEach(c=>c.classList.toggle('on',c===b));
+  state.cat=b.dataset.cat;renderProducts();
+});
+$$('[data-deal]').forEach(b=>b.addEventListener('click',()=>{
+  $$('[data-deal]').forEach(x=>x.classList.toggle('on',x===b));
+  state.deal=b.dataset.deal;renderProducts();
+}));
+
+function thumbHtml(p){
+  return p.img ? `<img src="${p.img}" alt="">` : `<div class="ph">${p.emoji||'🥒'}</div>`;
+}
+function priceHtml(p,cls=''){
+  return p.deal==='나눔'
+    ? `<div class="price free ${cls}">무료나눔</div>`
+    : `<div class="price ${cls}">${won(p.price)}원</div>`;
+}
+function badgeHtml(p){
+  if(p.sold)return `<span class="badge done">거래완료</span>`;
+  return p.deal==='나눔'?`<span class="badge share">나눔</span>`:`<span class="badge sale">판매</span>`;
+}
+
+function renderProducts(){
+  const grid=$('#productGrid');
+  let list=state.products.filter(p=>
+    (state.cat==='전체'||p.cat===state.cat)&&(state.deal==='전체'||p.deal===state.deal));
+  $('#homeCount').textContent=`신선한 매물 ${list.length}개`;
+  grid.innerHTML=list.map(p=>`
+    <div class="card" data-id="${p.id}">
+      <div class="thumb">
+        ${thumbHtml(p)} ${badgeHtml(p)}
+        <button class="jjim-btn ${p.jjimed?'on':''}" data-jjim="${p.id}">${p.jjimed?'🥒':'🤍'}</button>
+      </div>
+      <div class="body">
+        <div class="title">${p.title}</div>
+        ${priceHtml(p)}
+        <div class="meta"><span class="loc">📍 ${p.loc}</span></div>
+        <div class="meta"><span class="nick">@${p.nick}</span></div>
+        <div class="stat"><span>🥒 ${p.jjim}</span><span>💬 ${p.chats}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+/* 카드 클릭 → 상세 / 찜 */
+$('#productGrid').addEventListener('click',e=>{
+  const j=e.target.closest('[data-jjim]');
+  if(j){toggleJjim(j.dataset.jjim);e.stopPropagation();return;}
+  const c=e.target.closest('.card');if(c)openDetail(c.dataset.id);
+});
+
+function toggleJjim(id){
+  const p=state.products.find(x=>x.id===id);if(!p)return;
+  p.jjimed=!p.jjimed;p.jjim+=p.jjimed?1:-1;
+  toast(p.jjimed?'🥒 오이지 항아리에 담았어요':'항아리에서 뺐어요');
+  renderProducts();
+}
+
+/* ---------- 항아리 ---------- */
+function renderJar(){
+  const list=state.products.filter(p=>p.jjimed);
+  $('#jarCount').textContent=list.length;
+  $('#jarEmpty').classList.toggle('hidden',list.length>0);
+  $('#jarGrid').innerHTML=list.map(p=>`
+    <div class="card" data-id="${p.id}">
+      <div class="thumb">${thumbHtml(p)} ${badgeHtml(p)}
+        <button class="jjim-btn on" data-jjim="${p.id}">🥒</button></div>
+      <div class="body"><div class="title">${p.title}</div>${priceHtml(p)}
+        <div class="meta"><span class="loc">📍 ${p.loc}</span></div></div>
+    </div>`).join('');
+}
+$('#jarGrid').addEventListener('click',e=>{
+  const j=e.target.closest('[data-jjim]');
+  if(j){toggleJjim(j.dataset.jjim);renderJar();e.stopPropagation();return;}
+  const c=e.target.closest('.card');if(c)openDetail(c.dataset.id);
+});
+
+/* ---------- 상세 시트 ---------- */
+function openDetail(id){
+  const p=state.products.find(x=>x.id===id);if(!p)return;
+  const back=document.createElement('div');back.className='sheet-back';
+  back.innerHTML=`
+    <div class="sheet" id="detailSheet">
+      <div class="sheet-head"><div class="grip"></div>
+        <h3>매물 상세</h3><button class="close">✕</button></div>
+      <div class="detail-img">${thumbHtml(p)}</div>
+      <div class="detail-body">
+        ${badgeHtml(p)}
+        <div class="dtitle" style="margin-top:10px">${p.title}</div>
+        ${priceHtml(p,'dprice ').replace('price','dprice')}
+        <div class="detail-meta">
+          <span>📍 픽업 <b>${p.loc}</b></span>
+          <span>🙂 <b>@${p.nick}</b></span>
+          <span>🏷️ ${p.cat}</span>
+        </div>
+        <div class="ddesc">${p.desc||''}</div>
+        <div style="font-size:12px;color:var(--muted)">🥒 ${p.jjim}명이 찜 · 💬 ${p.chats}개의 대화</div>
+      </div>
+      <div class="detail-actions">
+        <button class="jbtn ${p.jjimed?'on':''}" id="dJjim">${p.jjimed?'🥒':'🤍'}</button>
+        <button class="chat" id="dChat">💬 대화하기</button>
+        ${p.deal==='판매'&&!p.sold?`<button class="buy" id="dBuy">💳 ${won(p.price)}원 결제</button>`:''}
+      </div>
+    </div>`;
+  $('#modalRoot').appendChild(back);
+  const close=()=>back.remove();
+  back.addEventListener('click',e=>{if(e.target===back)close()});
+  back.querySelector('.close').addEventListener('click',close);
+  back.querySelector('#dJjim').addEventListener('click',()=>{
+    toggleJjim(id);back.querySelector('#dJjim').className='jbtn '+(p.jjimed?'on':'');
+    back.querySelector('#dJjim').textContent=p.jjimed?'🥒':'🤍';
+  });
+  back.querySelector('#dChat').addEventListener('click',()=>{close();openChat(id);});
+  const buy=back.querySelector('#dBuy');
+  if(buy)buy.addEventListener('click',()=>{close();openPay(id);});
+}
+
+/* ---------- 채팅 시트 ---------- */
+function openChat(id){
+  const p=state.products.find(x=>x.id===id);if(!p)return;
+  if(!state.chats[id])state.chats[id]=[
+    {sys:true,text:`${p.nick}님과의 대화가 시작됐어요`},
+    {me:false,who:p.nick,text:p.deal==='나눔'?'안녕하세요! 나눔 문의 주셔서 감사해요 🙂':'안녕하세요! 문의 환영합니다.'}
+  ];
+  const back=document.createElement('div');back.className='sheet-back';
+  back.innerHTML=`
+    <div class="sheet" style="height:90vh">
+      <div class="sheet-head"><div class="grip"></div>
+        <h3>💬 @${p.nick}</h3><button class="close">✕</button></div>
+      <div class="chat-prod">
+        ${p.img?`<img src="${p.img}">`:`<div class="ph">${p.emoji}</div>`}
+        <div><div class="ct">${p.title}</div>
+        <div class="cp">${p.deal==='나눔'?'무료나눔':won(p.price)+'원'}</div></div>
+        <button class="jbtn ${p.jjimed?'on':''}" id="cJjim"
+          style="margin-left:auto;width:44px;height:44px;border-radius:12px;background:var(--skin-2);
+          border:1px solid var(--skin-line);font-size:20px">${p.jjimed?'🥒':'🤍'}</button>
+      </div>
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-quick">
+        <button data-q="아직 나눔 가능할까요?">아직 가능할까요?</button>
+        <button data-q="미리 찜해둘게요!">미리 찜할게요</button>
+        <button data-q="언제 픽업 가능한가요?">픽업 시간은?</button>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="메시지 입력...">
+        <button class="send" id="chatSend">↑</button>
+      </div>
+    </div>`;
+  $('#modalRoot').appendChild(back);
+  const close=()=>back.remove();
+  back.querySelector('.close').addEventListener('click',close);
+  back.addEventListener('click',e=>{if(e.target===back)close()});
+
+  const log=back.querySelector('#chatLog');
+  const draw=()=>{
+    log.innerHTML=state.chats[id].map(m=>{
+      if(m.sys)return `<div class="sys-msg">${m.text}</div>`;
+      return `<div class="msg ${m.me?'me':'them'}">
+        <div class="who">${m.me?state.me.nick:m.who}</div>${m.text}</div>`;
+    }).join('');
+    log.scrollTop=log.scrollHeight;
+  };
+  draw();
+  back.querySelector('#cJjim').addEventListener('click',()=>{
+    toggleJjim(id);const b=back.querySelector('#cJjim');
+    b.className='jbtn '+(p.jjimed?'on':'');b.textContent=p.jjimed?'🥒':'🤍';
+    b.style.cssText+=p.jjimed?'background:rgba(82,192,110,.15);border-color:var(--cuke)':'';
+  });
+  const input=back.querySelector('#chatInput');
+  const send=txt=>{
+    txt=(txt||input.value).trim();if(!txt)return;
+    state.chats[id].push({me:true,text:txt});input.value='';draw();
+    // 상대방 자동응답(데모)
+    setTimeout(()=>{
+      const reply=/픽업|시간|언제/.test(txt)?'오늘 오후 3시 이후면 사무실에서 픽업 가능해요!'
+        :/찜|예약|선점/.test(txt)?'네 찜해두셨네요 🥒 우선 연락드릴게요!'
+        :/가능|있나|남았/.test(txt)?(p.deal==='나눔'?'네 아직 남아있어요 😊':'네 판매중입니다!')
+        :'넵 확인했습니다 🙂';
+      state.chats[id].push({me:false,who:p.nick,text:reply});draw();
+    },800);
+  };
+  back.querySelector('#chatSend').addEventListener('click',()=>send());
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+  back.querySelectorAll('.chat-quick button').forEach(b=>
+    b.addEventListener('click',()=>send(b.dataset.q)));
+}
+
+/* ---------- 결제 시트 (토스/스트라이프/페이팔) ---------- */
+function openPay(id){
+  const p=state.products.find(x=>x.id===id);if(!p)return;
+  const fee=Math.round(p.price*0.02);
+  let method='toss';
+  const back=document.createElement('div');back.className='sheet-back';
+  back.innerHTML=`
+    <div class="sheet">
+      <div class="sheet-head"><div class="grip"></div>
+        <h3>💳 결제하기</h3><button class="close">✕</button></div>
+      <div class="pay-body">
+        <div class="pay-sum">
+          <div class="l"><span>${p.title}</span><b>${won(p.price)}원</b></div>
+          <div class="l"><span>안전거래 수수료(2%)</span><b>${won(fee)}원</b></div>
+          <div class="total"><span>총 결제금액</span><b>${won(p.price+fee)}원</b></div>
+        </div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">결제 수단</div>
+        <div class="pay-method" id="payMethod">
+          <div class="pay-opt on" data-m="toss"><div class="logo toss">toss</div>토스페이<div class="rd"></div></div>
+          <div class="pay-opt" data-m="stripe"><div class="logo stripe">S</div>Stripe (해외카드)<div class="rd"></div></div>
+          <div class="pay-opt" data-m="paypal"><div class="logo paypal">P</div>PayPal<div class="rd"></div></div>
+        </div>
+        <button class="btn-primary" id="payNow">${won(p.price+fee)}원 결제하기</button>
+        <div class="pay-note">🧪 데모 결제입니다 — 실제 청구 없음<br>실서비스에서는 토스페이먼츠 SDK / Stripe Checkout으로 연결됩니다.</div>
+      </div>
+    </div>`;
+  $('#modalRoot').appendChild(back);
+  const close=()=>back.remove();
+  back.querySelector('.close').addEventListener('click',close);
+  back.addEventListener('click',e=>{if(e.target===back)close()});
+  back.querySelector('#payMethod').addEventListener('click',e=>{
+    const o=e.target.closest('.pay-opt');if(!o)return;
+    back.querySelectorAll('.pay-opt').forEach(x=>x.classList.toggle('on',x===o));
+    method=o.dataset.m;
+  });
+  back.querySelector('#payNow').addEventListener('click',()=>{
+    const btn=back.querySelector('#payNow');btn.textContent='결제 처리 중...';btn.disabled=true;
+    setTimeout(()=>{
+      p.sold=true;close();renderProducts();
+      toast(`✅ ${method.toUpperCase()} 결제 완료! @${p.nick}님과 픽업을 약속하세요`);
+    },1100);
+  });
+}
+
+/* ---------- 사진 업로드 + WEBP 변환 (실동작) ---------- */
+let uploadedImg=null, uploadedBlob=null;
+$('#photoInput').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  const origKB=file.size/1024;
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    URL.revokeObjectURL(url);
+    // 최대 1280px로 리사이즈
+    const max=1280;let{width:w,height:h}=img;
+    if(w>max||h>max){const r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);}
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    cv.toBlob(blob=>{
+      if(!blob){toast('이 브라우저는 WEBP를 지원하지 않아요');return;}
+      const webpKB=blob.size/1024;
+      const saved=Math.max(0,Math.round((1-webpKB/origKB)*100));
+      uploadedBlob=blob;
+      uploadedImg=URL.createObjectURL(blob);
+      $('#previewImg').src=uploadedImg;
+      $('#preview').classList.remove('hidden');
+      $('#convInfo').innerHTML=`
+        <div><span class="pill">원본 ${origKB.toFixed(0)}KB</span>→
+        <span class="pill">WEBP ${webpKB.toFixed(0)}KB</span></div>
+        <div style="margin-top:4px">용량 <span class="save">${saved}% 절감</span> · ${w}×${h}px</div>`;
+    },'image/webp',0.8);
+  };
+  img.src=url;
+});
+
+/* 거래방식 토글 → 단가 필드 */
+$('#upDeal').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  $$('#upDeal button').forEach(x=>x.classList.toggle('on',x===b));
+  $('#priceField').classList.toggle('hidden',b.dataset.d!=='판매');
+});
+
+/* 매물 등록 */
+$('#submitBtn').addEventListener('click',async()=>{
+  const title=$('#upTitle').value.trim();
+  if(!title){toast('제목을 입력해주세요');return;}
+  const deal=$('#upDeal .on').dataset.d;
+  const price=deal==='판매'?(+$('#upPrice').value||0):0;
+  if(deal==='판매'&&!price){toast('판매 단가를 입력해주세요');return;}
+
+  const resetForm=()=>{
+    $('#upTitle').value='';$('#upPrice').value='';$('#upDesc').value='';
+    $('#preview').classList.add('hidden');uploadedImg=null;uploadedBlob=null;$('#photoInput').value='';
+  };
+
+  // ── 백엔드 연결 시: Firebase Storage 업로드 → 구글시트 등록 ──
+  if(window.Oiji && Oiji.enabled){
+    if(!Oiji.user){toast('먼저 내정보에서 구글 로그인을 해주세요');return;}
+    const btn=$('#submitBtn');btn.disabled=true;btn.textContent='올리는 중...';
+    try{
+      let photoURL='';
+      if(uploadedBlob) photoURL=await Oiji.uploadPhoto(uploadedBlob);
+      await Oiji.create({
+        title, category:$('#upCat').value, deal, price,
+        loc:$('#upLoc').value, nick:state.me.nick, uid:Oiji.user.uid,
+        desc:$('#upDesc').value.trim(), photoURL
+      });
+      resetForm();toast('🥒 구글시트에 매물을 올렸어요!');
+      $$('nav.tabbar button')[0].click();
+      await loadFromBackend();
+    }catch(err){toast('등록 실패: '+err.message);}
+    btn.disabled=false;btn.textContent='항아리에 올리기 🥒';
+    return;
+  }
+
+  // ── 데모(로컬) ──
+  const p={
+    id:'u'+Date.now(),emoji:'🥒',title,cat:$('#upCat').value,deal,price,
+    loc:$('#upLoc').value,nick:state.me.nick,desc:$('#upDesc').value.trim(),
+    img:uploadedImg,jjim:0,chats:0
+  };
+  state.products.unshift(p);
+  checkKeywordMatch(p);
+  resetForm();
+  toast('🥒 항아리에 매물을 올렸어요!');
+  $$('nav.tabbar button')[0].click();
+  renderProducts();
+});
+
+/* ---------- 알림 ---------- */
+function renderKeywords(){
+  $('#kwList').innerHTML=state.keywords.map((k,i)=>
+    `<span class="kw-tag">${k}<button class="x" data-kw="${i}">✕</button></span>`).join('');
+}
+$('#kwAddBtn').addEventListener('click',()=>{
+  const v=$('#kwInput').value.trim();if(!v)return;
+  if(!state.keywords.includes(v))state.keywords.push(v);
+  $('#kwInput').value='';renderKeywords();toast(`'${v}' 알림 등록 완료`);
+});
+$('#kwInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#kwAddBtn').click()});
+$('#kwList').addEventListener('click',e=>{
+  const x=e.target.closest('[data-kw]');if(!x)return;
+  state.keywords.splice(+x.dataset.kw,1);renderKeywords();
+});
+
+function checkKeywordMatch(p){
+  const hit=state.keywords.find(k=>p.title.includes(k)||p.desc.includes(k));
+  if(!hit)return;
+  const noti={id:Date.now(),kw:hit,title:p.title,pid:p.id,loc:p.loc,time:'방금 전',unread:true};
+  state.notis.unshift(noti);
+  updateNotiBadge();
+  // 웹 푸시(권한 허용 시)
+  if(window.Notification && Notification.permission==='granted'){
+    new Notification('🥒 찾던 물건이 올라왔어요!',{body:`'${hit}' · ${p.title}`});
+  }
+  toast(`🔔 '${hit}' 키워드 매물 알림이 도착했어요`);
+}
+function updateNotiBadge(){
+  const n=state.notis.filter(x=>x.unread).length;
+  const b=$('#tabNotiBadge');b.textContent=n;b.classList.toggle('hidden',n===0);
+}
+function renderNoti(){
+  state.notis.forEach(n=>n.unread=false);updateNotiBadge();
+  $('#notiEmpty').classList.toggle('hidden',state.notis.length>0);
+  $('#notiList').innerHTML=state.notis.map(n=>`
+    <div class="noti-item ${n.unread?'unread':''}" data-pid="${n.pid}">
+      <div class="nic">🥒</div>
+      <div><div class="nt">'${n.kw}' 키워드 매물이 올라왔어요</div>
+      <div class="nd">${n.title} · 📍${n.loc} · ${n.time}</div></div>
+    </div>`).join('');
+}
+$('#notiList').addEventListener('click',e=>{
+  const it=e.target.closest('[data-pid]');if(it)openDetail(it.dataset.pid);
+});
+$('#enablePush').addEventListener('click',async()=>{
+  if(!window.Notification){toast('이 브라우저는 알림을 지원하지 않아요');return;}
+  const perm=await Notification.requestPermission();
+  if(perm==='granted'){toast('🔔 푸시 알림이 켜졌어요');
+    new Notification('오이지마켓',{body:'이제 찾는 물건이 올라오면 바로 알려드릴게요!'});}
+  else toast('알림 권한이 거부되었어요');
+});
+
+/* ---------- 내정보 ---------- */
+$('#saveProfile').addEventListener('click',()=>{
+  const nick=$('#setNick').value.trim()||'오이박사';
+  state.me.nick=nick;state.me.loc=$('#setLoc').value;
+  $('#meNick').textContent=nick;
+  // 올리기 폼의 기본 근무지도 동기화
+  $('#upLoc').value=state.me.loc;
+  toast('프로필을 저장했어요 🥒');
+});
+
+/* ---------- 구글 로그인 (백엔드 연결 시 노출) ---------- */
+function updateLoginUI(u){
+  const btn=$('#googleLogin');
+  if(!window.Oiji || !Oiji.enabled){btn.style.display='none';return;}
+  btn.style.display='block';
+  if(u){
+    $('#googleLoginLabel').textContent=`로그아웃 (${u.email})`;
+    // 닉네임이 기본값이면 구글 이름으로 제안
+    if($('#setNick').value==='오이박사' && u.displayName){
+      $('#setNick').value=u.displayName; state.me.nick=u.displayName; $('#meNick').textContent=u.displayName;
+    }
+  }else{
+    $('#googleLoginLabel').textContent='구글로 로그인';
+  }
+}
+$('#googleLogin').addEventListener('click',async()=>{
+  try{
+    if(Oiji.user){ await Oiji.signOut(); toast('로그아웃했어요'); }
+    else { const u=await Oiji.signIn(); toast(`${u.displayName||u.email}님 환영해요 🥒`); }
+  }catch(err){ toast('로그인 실패: '+err.message); }
+});
+
+/* ---------- 백엔드 로딩 ---------- */
+async function loadFromBackend(){
+  try{
+    const items=await Oiji.list();
+    // 기존 찜 상태 유지
+    const jjimed=new Set(state.products.filter(p=>p.jjimed).map(p=>p.id));
+    state.products=items.map(p=>({...p, jjimed:jjimed.has(p.id)}));
+    renderProducts();
+  }catch(err){ toast('목록을 불러오지 못했어요: '+err.message); }
+}
+
+/* ---------- 초기 렌더 ---------- */
+renderProducts();renderKeywords();updateNotiBadge();
+
+if(window.Oiji && Oiji.enabled){
+  Oiji.init();
+  window._onAuthChange=(u)=>{ updateLoginUI(u); };
+  loadFromBackend();
+}
+
+/* ---------- PWA manifest (인라인) ---------- */
+const manifest={name:"오이(52)지마켓",short_name:"오이지마켓",start_url:".",display:"standalone",
+  background_color:"#0a120d",theme_color:"#0a120d",
+  icons:[{src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' fill='%230a120d'/><ellipse cx='24' cy='24' rx='9' ry='17' transform='rotate(38 24 24)' fill='%2373d98a'/></svg>",sizes:"512x512",type:"image/svg+xml"}]};
+const ml=document.createElement('link');ml.rel='manifest';
+ml.href=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'}));
+document.head.appendChild(ml);
+</script>
+</body>
+</html>

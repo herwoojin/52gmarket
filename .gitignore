@@ -1,0 +1,24 @@
+# Dependencies
+oiji-market/node_modules/
+node_modules/
+
+# Next.js
+oiji-market/.next/
+.next/
+
+# Environment
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Debug
+npm-debug.log*
+pnpm-debug.log*
