@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Product } from "@/types";
 import { Heart, MapPin, MessageCircle, Pencil } from "lucide-react";
+import { loadDriveImg } from "@/lib/driveImage";
 
 interface ProductCardProps {
   product: Product;
@@ -13,18 +14,6 @@ interface ProductCardProps {
   onEditClick?: (product: Product) => void;
 }
 
-function normalizeDriveUrl(url: string | undefined): string {
-  if (!url) return "";
-  // 표시용 텍스트 / 만료된 blob → 이미지 없음
-  if (url.startsWith("blob:") || url === "이미지 보기" || url === "이미지링크") return "";
-  // thumbnail 포맷(이전 버그) → uc 포맷으로 변환
-  if (url.includes("drive.google.com/thumbnail")) {
-    const m = url.match(/id=([^&]+)/);
-    if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-  }
-  return url;
-}
-
 export default function ProductCard({
   product,
   isJjimed = false,
@@ -33,13 +22,18 @@ export default function ProductCard({
   onClick,
   onEditClick,
 }: ProductCardProps) {
-  const [imgError, setImgError] = useState(false);
+  const [imgSrc, setImgSrc] = useState("");
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
   const isOwner = !!currentUid && product.uid === currentUid;
-  // blob: URL은 새로고침 시 만료 → 즉시 fallback; thumbnail 포맷은 uc 포맷으로 변환
-  const resolvedUrl = normalizeDriveUrl(product.photoURL);
-  const showImg = !!resolvedUrl && !imgError;
+
+  useEffect(() => {
+    let cancelled = false;
+    loadDriveImg(product.photoURL).then(src => { if (!cancelled) setImgSrc(src); });
+    return () => { cancelled = true; };
+  }, [product.photoURL]);
+
+  const showImg = !!imgSrc;
 
   return (
     <article
@@ -54,12 +48,10 @@ export default function ProductCard({
       <div className="relative aspect-square overflow-hidden bg-skin-2">
         {showImg ? (
           <img
-            src={resolvedUrl}
+            src={imgSrc}
             alt={product.title}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"
-            crossOrigin="anonymous"
-            onError={() => setImgError(true)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-4xl opacity-40">

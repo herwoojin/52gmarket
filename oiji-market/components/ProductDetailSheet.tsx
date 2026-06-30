@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Product } from "@/types";
 import { CATEGORIES, LOCATIONS } from "@/types";
 import { Heart, MessageCircle, MapPin, Tag, X, CreditCard, Pencil, Trash2, Loader2 } from "lucide-react";
 import { uploadPhoto } from "@/lib/storage";
 import { toWebp } from "@/lib/webp";
+import { loadDriveImg } from "@/lib/driveImage";
 
 interface ProductDetailSheetProps {
   product: Product | null;
@@ -36,18 +37,13 @@ export default function ProductDetailSheet({
 }: ProductDetailSheetProps) {
   const [editMode, setEditMode] = useState(initialEditMode);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [detailImgError, setDetailImgError] = useState(false);
+  const [detailImgSrc, setDetailImgSrc] = useState("");
 
-  function normalizeDriveUrl(url: string | undefined): string {
-    if (!url) return "";
-    if (url.startsWith("blob:") || url === "이미지 보기" || url === "이미지링크") return "";
-    if (url.includes("drive.google.com/thumbnail")) {
-      const m = url.match(/id=([^&]+)/);
-      if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
-    }
-    return url;
-  }
-  const resolvedDetailUrl = normalizeDriveUrl(product?.photoURL);
+  useEffect(() => {
+    let cancelled = false;
+    loadDriveImg(product?.photoURL).then(src => { if (!cancelled) setDetailImgSrc(src); });
+    return () => { cancelled = true; };
+  }, [product?.photoURL]);
 
   // 편집 폼 상태
   const [title, setTitle] = useState("");
@@ -310,8 +306,8 @@ export default function ProductDetailSheet({
           /* ───────── 상세 보기 모드 ───────── */
           <div className="overflow-y-auto px-5 pb-36" style={{ maxHeight: "calc(90vh - 80px)" }}>
             <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-2xl bg-skin-2">
-              {resolvedDetailUrl && !detailImgError ? (
-                <img src={resolvedDetailUrl} alt={product.title} className="h-full w-full object-cover" crossOrigin="anonymous" onError={() => setDetailImgError(true)} />
+              {detailImgSrc ? (
+                <img src={detailImgSrc} alt={product.title} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-7xl opacity-30">🥒</div>
               )}

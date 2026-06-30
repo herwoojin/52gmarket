@@ -362,6 +362,17 @@ function doGet(e) {
     return getRankingData_();
   }
 
+  /* ── 이미지 프록시: Drive 파일 → base64 (CORS/CORP 완전 우회) ── */
+  if (params.action === 'img' && params.id) {
+    try {
+      const file = DriveApp.getFileById(params.id);
+      const blob = file.getBlob();
+      return json_({ ok: true, b64: Utilities.base64Encode(blob.getBytes()), mime: blob.getContentType() });
+    } catch(err) {
+      return json_({ ok: false, error: String(err) });
+    }
+  }
+
   /* ── 매물 목록 전체 반환 ── */
   const items = rowsToObjects_()
     .filter(o => o.id && o.status !== '삭제')
