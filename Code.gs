@@ -60,23 +60,8 @@ function uploadToDrive_(base64, filename, mimeType) {
  *  ========================================================= */
 function setPhotoPreview_(sh, row, url) {
   if (!url || !String(url).startsWith('http')) return;
-
-  const photoCol = HEADERS.indexOf('photoURL') + 1; // = 12
-  const linkText = '이미지 보기';
-
-  // L열: 클릭 시 새 창으로 열리는 하이퍼링크 (Rich Text)
-  try {
-    const richText = SpreadsheetApp.newRichTextValue()
-      .setText(linkText)
-      .setLinkUrl(0, linkText.length, url)
-      .build();
-    sh.getRange(row, photoCol).setRichTextValue(richText);
-  } catch (_) {
-    // Rich Text 실패 시 HYPERLINK 공식 폴백
-    sh.getRange(row, photoCol).setFormula('=HYPERLINK("' + url + '","이미지 보기")');
-  }
-
-  // O열(15번째): IMAGE 공식으로 인라인 미리보기 (모드 4 = 커스텀 크기)
+  // L열(photoURL)은 건드리지 않음 — appendRow/setValue 가 이미 올바른 URL을 기록했음
+  // L열에 하이퍼링크를 쓰면 getValues()가 "이미지 보기" 텍스트를 반환해 URL이 사라지는 버그 방지
   sh.getRange(row, 15).setFormula('=IMAGE("' + url + '",4,80,80)');
   sh.setRowHeight(row, 90);
 }
@@ -94,6 +79,45 @@ function initPermissions() {
   } catch (err) {
     SpreadsheetApp.getUi().alert('Drive 권한 오류: ' + err);
   }
+}
+
+/* =========================================================
+ *  🛠️ 기존 "이미지 보기" photoURL 복구
+ *  RichText 하이퍼링크에서 실제 URL을 추출해 L열에 plain text로 복원
+ *  Apps Script 에디터에서 한 번만 실행하면 됨
+ *  ========================================================= */
+function repairPhotoURLs() {
+  const sh = getSheet_();
+  const photoColNum = HEADERS.indexOf('photoURL') + 1;
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('데이터가 없어요.', '복구', 3);
+    return;
+  }
+
+  const photoRange = sh.getRange(2, photoColNum, lastRow - 1, 1);
+  const values = photoRange.getValues();
+  const richTexts = photoRange.getRichTextValues();
+
+  let fixed = 0;
+  for (let i = 0; i < values.length; i++) {
+    const cellVal = String(values[i][0] || '');
+    if (cellVal.startsWith('http')) continue; // 이미 올바른 URL
+    const rt = richTexts[i][0];
+    if (!rt) continue;
+    for (const run of rt.getRuns()) {
+      const link = run.getLinkUrl();
+      if (link && link.startsWith('http')) {
+        photoRange.getCell(i + 1, 1).setValue(link);
+        fixed++;
+        break;
+      }
+    }
+  }
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    fixed + '개 photoURL 복구 완료! (blob: URL은 재업로드 필요)', '🖼️ 복구', 5
+  );
 }
 
 /* =========================================================
@@ -238,12 +262,37 @@ function setupSheet_() {
 
 function rowsToObjects_() {
   const sh = getSheet_();
-  const data = sh.getDataRange().getValues();
-  const head = data.shift();
-  return data.map((r, i) => {
+  const dataRange = sh.getDataRange();
+  if (dataRange.getNumRows() < 2) return [];
+
+  const values = dataRange.getValues();
+  const head = values[0];
+  const photoCol = head.indexOf('photoURL'); // 0-based
+
+  // RichText 전체 가져오기 (photoURL 셀이 "이미지 보기" 하이퍼링크일 때 실제 URL 복원용)
+  let richTexts = null;
+  try { richTexts = dataRange.getRichTextValues(); } catch(_) {}
+
+  return values.slice(1).map((r, i) => {
     const o = {};
-    head.forEach((h, c) => o[h] = r[c]);
+    head.forEach((h, c) => { o[h] = r[c]; });
     o._row = i + 2;
+
+    // photoURL 값이 "이미지 보기" 또는 빈값이면 RichText 링크에서 실제 URL 추출
+    if (photoCol >= 0 && richTexts) {
+      const cellVal = String(r[photoCol] || '');
+      if (!cellVal.startsWith('http')) {
+        try {
+          const rt = richTexts[i + 1][photoCol];
+          if (rt) {
+            for (const run of rt.getRuns()) {
+              const link = run.getLinkUrl();
+              if (link && link.startsWith('http')) { o.photoURL = link; break; }
+            }
+          }
+        } catch(_) {}
+      }
+    }
     return o;
   });
 }
@@ -499,6 +548,7 @@ function onOpen() {
     .addItem('⚡ 실시간 동기화 트리거 등록', 'initOnEditTrigger')
     .addSeparator()
     .addItem('🔑 Google Drive 권한 초기화 (최초 1회)', 'initPermissions')
+    .addItem('🛠️ photoURL 복구 (이미지 보기 → 실제 URL)', 'repairPhotoURLs')
     .addItem('🖼️ 전체 행 사진 미리보기 재생성', 'rebuildPhotoPreviews')
     .addToUi();
 }
