@@ -311,7 +311,7 @@ export default function ProductDetailSheet({
           <div className="overflow-y-auto px-5 pb-36" style={{ maxHeight: "calc(90vh - 80px)" }}>
             <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-2xl bg-skin-2">
               {resolvedDetailUrl && !detailImgError ? (
-                <img src={resolvedDetailUrl} alt={product.title} className="h-full w-full object-cover" onError={() => setDetailImgError(true)} />
+                <img src={resolvedDetailUrl} alt={product.title} className="h-full w-full object-cover" crossOrigin="anonymous" onError={() => setDetailImgError(true)} />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-7xl opacity-30">🥒</div>
               )}
