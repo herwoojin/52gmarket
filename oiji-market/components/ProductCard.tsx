@@ -1,27 +1,36 @@
 "use client";
 
 import type { Product } from "@/types";
-import { Heart, MapPin, MessageCircle } from "lucide-react";
+import { Heart, MapPin, MessageCircle, Pencil } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
   isJjimed?: boolean;
+  currentUid?: string;
   onJjimToggle?: (id: string) => void;
   onClick?: (product: Product) => void;
+  onEditClick?: (product: Product) => void;
 }
 
 export default function ProductCard({
   product,
   isJjimed = false,
+  currentUid,
   onJjimToggle,
   onClick,
+  onEditClick,
 }: ProductCardProps) {
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
+  const isOwner = !!currentUid && product.uid === currentUid;
 
   return (
     <article
-      className="group cursor-pointer overflow-hidden rounded-oiji border border-skin-line bg-skin-1 transition-all hover:border-cuke/30 active:scale-[0.98]"
+      className={`group cursor-pointer overflow-hidden rounded-oiji border bg-skin-1 transition-all active:scale-[0.98] ${
+        isOwner
+          ? "border-cuke/40 hover:border-cuke"
+          : "border-skin-line hover:border-cuke/30"
+      }`}
       onClick={() => onClick?.(product)}
     >
       {/* 썸네일 */}
@@ -54,20 +63,33 @@ export default function ProductCard({
           </span>
         )}
 
-        {/* 찜 버튼 */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onJjimToggle?.(product.id);
-          }}
-          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-sm transition-all ${
-            isJjimed
-              ? "border-cuke bg-cuke text-skin-0"
-              : "border-white/10 bg-skin-0/60 text-ink hover:bg-cuke/20"
-          }`}
-        >
-          <Heart size={15} fill={isJjimed ? "currentColor" : "none"} />
-        </button>
+        {/* 우상단 버튼: 내 매물이면 편집, 아니면 찜 */}
+        {isOwner ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditClick?.(product);
+            }}
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-cuke/60 bg-cuke/80 text-skin-0 shadow backdrop-blur-sm transition-all hover:bg-cuke"
+            title="내 매물 수정"
+          >
+            <Pencil size={14} />
+          </button>
+        ) : (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onJjimToggle?.(product.id);
+            }}
+            className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-sm transition-all ${
+              isJjimed
+                ? "border-cuke bg-cuke text-skin-0"
+                : "border-white/10 bg-skin-0/60 text-ink hover:bg-cuke/20"
+            }`}
+          >
+            <Heart size={15} fill={isJjimed ? "currentColor" : "none"} />
+          </button>
+        )}
       </div>
 
       {/* 본문 */}
@@ -87,13 +109,18 @@ export default function ProductCard({
           <span className="font-semibold text-cuke-bright">@{product.nick}</span>
         </div>
 
-        <div className="mt-2 flex gap-3 text-[11px] text-muted">
-          <span className="inline-flex items-center gap-1">
-            <Heart size={11} /> {product.jjim}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle size={11} /> {product.chats}
-          </span>
+        <div className="mt-2 flex items-center justify-between">
+          <div className="flex gap-3 text-[11px] text-muted">
+            <span className="inline-flex items-center gap-1">
+              <Heart size={11} /> {product.jjim}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle size={11} /> {product.chats}
+            </span>
+          </div>
+          {isOwner && (
+            <span className="text-[10px] font-bold text-cuke/70">내 매물 ✏️</span>
+          )}
         </div>
       </div>
     </article>

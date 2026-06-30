@@ -12,6 +12,7 @@ interface ProductDetailSheetProps {
   isOpen: boolean;
   isJjimed?: boolean;
   currentUid?: string;
+  initialEditMode?: boolean;
   onClose: () => void;
   onJjimToggle?: (id: string) => void;
   onChat?: (product: Product) => void;
@@ -25,6 +26,7 @@ export default function ProductDetailSheet({
   isOpen,
   isJjimed = false,
   currentUid,
+  initialEditMode = false,
   onClose,
   onJjimToggle,
   onChat,
@@ -32,7 +34,7 @@ export default function ProductDetailSheet({
   onUpdate,
   onDelete,
 }: ProductDetailSheetProps) {
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(initialEditMode);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // 편집 폼 상태

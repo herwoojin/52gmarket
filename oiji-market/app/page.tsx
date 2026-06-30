@@ -23,6 +23,7 @@ export default function HomePage() {
   const [catFilter, setCatFilter] = useState<string>("전체");
   const [dealFilter, setDealFilter] = useState<string>("전체");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [openInEditMode, setOpenInEditMode] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
   const [jjimedIds, setJjimedIds] = useState<Set<string>>(new Set());
 
@@ -141,8 +142,10 @@ export default function HomePage() {
               key={product.id}
               product={product}
               isJjimed={jjimedIds.has(product.id)}
+              currentUid={user?.email || ""}
               onJjimToggle={handleJjimToggle}
-              onClick={setSelectedProduct}
+              onClick={(p) => { setOpenInEditMode(false); setSelectedProduct(p); }}
+              onEditClick={(p) => { setOpenInEditMode(true); setSelectedProduct(p); }}
             />
           ))}
         </div>
@@ -159,13 +162,15 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 상세 시트 */}
+      {/* 상세 시트 — key가 바뀌면 state 자동 리셋 (편집/뷰 모드 전환 포함) */}
       <ProductDetailSheet
+        key={`${selectedProduct?.id ?? "closed"}-${openInEditMode ? "e" : "v"}`}
         product={selectedProduct}
         isOpen={!!selectedProduct}
         isJjimed={selectedProduct ? jjimedIds.has(selectedProduct.id) : false}
         currentUid={user?.email || ""}
-        onClose={() => setSelectedProduct(null)}
+        initialEditMode={openInEditMode}
+        onClose={() => { setSelectedProduct(null); setOpenInEditMode(false); }}
         onJjimToggle={handleJjimToggle}
         onChat={(p) => {
           setSelectedProduct(null);
