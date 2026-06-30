@@ -109,6 +109,11 @@ export default function UploadPage() {
         queryClient.invalidateQueries({ queryKey: ["products"] });
         toast("🥒 매물을 올렸어요!");
         router.push("/");
+      } else {
+        const msg = (result as { ok: false; error?: string }).error;
+        toast.error(msg === "unauthorized"
+          ? "앱 토큰 설정이 필요해요. 관리자에게 문의하세요."
+          : `등록 실패: ${msg || "알 수 없는 오류"}`);
       }
     } catch (err) {
       toast.error("등록에 실패했어요. 다시 시도해주세요.");

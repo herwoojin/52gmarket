@@ -20,20 +20,30 @@ async function post(payload: object) {
 /** 매물 목록 조회 */
 export async function listProducts(): Promise<Product[]> {
   if (isDemoMode) {
-    // 데모: 약간의 지연 시뮬레이션
     await new Promise((r) => setTimeout(r, 300));
     return DEMO_PRODUCTS.filter((p) => p.status !== "삭제");
   }
-  const res = await fetch(APPS_SCRIPT_URL);
+  const res = await fetch(APPS_SCRIPT_URL, { cache: "no-store" });
   const data = await res.json();
   return data.items || [];
+}
+
+/** 마지막 시트 변경 타임스탬프 조회 (실시간 동기화 폴링용) */
+export async function getLastModified(): Promise<number> {
+  if (isDemoMode) return 0;
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=ping`, { cache: "no-store" });
+    const data = await res.json();
+    return data.lastModified || 0;
+  } catch {
+    return 0;
+  }
 }
 
 /** 매물 등록 */
 export async function createProduct(item: NewProduct): Promise<{ ok: boolean; id?: string }> {
   if (isDemoMode) {
     const id = `p${Date.now()}`;
-    // 데모 모드: 로컬 배열에 추가
     DEMO_PRODUCTS.unshift({
       ...item,
       id,

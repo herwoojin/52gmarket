@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listProducts, updateProduct } from "@/lib/sheets";
+import { listProducts, updateProduct, removeProduct, getLastModified } from "@/lib/sheets";
 import ProductCard from "@/components/ProductCard";
 import ProductDetailSheet from "@/components/ProductDetailSheet";
 import ChatSheet from "@/components/ChatSheet";
@@ -17,6 +17,7 @@ export default function HomePage() {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
     queryFn: listProducts,
+    staleTime: 0,
   });
 
   const [catFilter, setCatFilter] = useState<string>("전체");
@@ -24,6 +25,31 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
   const [jjimedIds, setJjimedIds] = useState<Set<string>>(new Set());
+
+  /* ── 실시간 동기화: 10초마다 ping → 시트 변경 감지 시 즉시 리프레시 ── */
+  const lastModifiedRef = useRef<number>(0);
+
+  const { data: lastModified = 0 } = useQuery({
+    queryKey: ["ping"],
+    queryFn: getLastModified,
+    refetchInterval: 10_000,
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  useEffect(() => {
+    if (!lastModified) return;
+    if (lastModifiedRef.current === 0) {
+      // 첫 로드 — 기준점 저장
+      lastModifiedRef.current = lastModified;
+      return;
+    }
+    if (lastModified > lastModifiedRef.current) {
+      lastModifiedRef.current = lastModified;
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast("🥒 시트가 업데이트됐어요!", { duration: 2000 });
+    }
+  }, [lastModified, queryClient]);
 
   const filtered = useMemo(() => {
     return products
@@ -33,6 +59,19 @@ export default function HomePage() {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [products, catFilter, dealFilter]);
 
+  const handleUpdate = async (id: string, patch: Partial<(typeof products)[0]>) => {
+    await updateProduct(id, patch);
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    toast("🥒 매물을 수정했어요!");
+  };
+
+  const handleDelete = async (id: string) => {
+    await removeProduct(id);
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    setSelectedProduct(null);
+    toast("매물을 삭제했어요");
+  };
+
   const handleJjimToggle = async (id: string) => {
     setJjimedIds((prev) => {
       const next = new Set(prev);
@@ -40,7 +79,6 @@ export default function HomePage() {
       if (wasJjimed) next.delete(id);
       else next.add(id);
 
-      // 시트 찜 수 갱신
       const product = products.find((p) => p.id === id);
       if (product) {
         updateProduct(id, { jjim: product.jjim + (wasJjimed ? -1 : 1) });
@@ -126,19 +164,23 @@ export default function HomePage() {
         product={selectedProduct}
         isOpen={!!selectedProduct}
         isJjimed={selectedProduct ? jjimedIds.has(selectedProduct.id) : false}
+        currentUid={user?.email || ""}
         onClose={() => setSelectedProduct(null)}
         onJjimToggle={handleJjimToggle}
         onChat={(p) => {
           setSelectedProduct(null);
           setChatProduct(p);
         }}
-        onPay={(p) => {
+        onPay={() => {
           toast("💳 결제 기능은 토스페이먼츠 키 설정 후 사용 가능해요");
         }}
+        onUpdate={handleUpdate}
+        onDelete={handleDelete}
       />
 
-      {/* 채팅 시트 */}
+      {/* 채팅 시트 — key가 바뀌면 state 자동 리셋 */}
       <ChatSheet
+        key={chatProduct?.id ?? "closed"}
         product={chatProduct}
         isOpen={!!chatProduct}
         onClose={() => setChatProduct(null)}
