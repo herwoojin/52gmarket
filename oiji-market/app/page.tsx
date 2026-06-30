@@ -84,26 +84,28 @@ export default function HomePage() {
   };
 
   const handleJjimToggle = async (id: string) => {
+    const product = products.find((p) => p.id === id);
+    if (!product) return;
+
+    const wasJjimed = jjimedIds.has(id);
+
+    // 1. 로컬 상태 업데이트 (즉시 UI 반영)
     setJjimedIds((prev) => {
       const next = new Set(prev);
-      const wasJjimed = next.has(id);
       if (wasJjimed) next.delete(id);
       else next.add(id);
-
-      // localStorage 영구 저장 (유저별)
       try {
         localStorage.setItem(jjimKey, JSON.stringify(Array.from(next)));
       } catch { /* 무시 */ }
-
-      const product = products.find((p) => p.id === id);
-      if (product) {
-        updateProduct(id, { jjim: product.jjim + (wasJjimed ? -1 : 1) });
-        queryClient.invalidateQueries({ queryKey: ["products"] });
-      }
-
-      toast(wasJjimed ? "항아리에서 꺼냈어요" : "🥒 항아리에 담았어요!");
       return next;
     });
+
+    toast(wasJjimed ? "항아리에서 꺼냈어요" : "🥒 항아리에 담았어요!");
+
+    // 2. 시트 카운터 업데이트 (음수 방지)
+    const newJjim = Math.max(0, (product.jjim ?? 0) + (wasJjimed ? -1 : 1));
+    await updateProduct(id, { jjim: newJjim });
+    queryClient.invalidateQueries({ queryKey: ["products"] });
   };
 
   return (
