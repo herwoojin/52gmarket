@@ -14,7 +14,9 @@ interface ProductCardProps {
 }
 
 function normalizeDriveUrl(url: string | undefined): string {
-  if (!url || url.startsWith("blob:")) return "";
+  if (!url) return "";
+  // 표시용 텍스트 / 만료된 blob → 이미지 없음
+  if (url.startsWith("blob:") || url === "이미지 보기" || url === "이미지링크") return "";
   // thumbnail 포맷(이전 버그) → uc 포맷으로 변환
   if (url.includes("drive.google.com/thumbnail")) {
     const m = url.match(/id=([^&]+)/);

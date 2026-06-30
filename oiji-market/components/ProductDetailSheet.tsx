@@ -39,7 +39,8 @@ export default function ProductDetailSheet({
   const [detailImgError, setDetailImgError] = useState(false);
 
   function normalizeDriveUrl(url: string | undefined): string {
-    if (!url || url.startsWith("blob:")) return "";
+    if (!url) return "";
+    if (url.startsWith("blob:") || url === "이미지 보기" || url === "이미지링크") return "";
     if (url.includes("drive.google.com/thumbnail")) {
       const m = url.match(/id=([^&]+)/);
       if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;

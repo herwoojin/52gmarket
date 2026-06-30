@@ -49,9 +49,9 @@ function uploadToDrive_(base64, filename, mimeType) {
   }
 
   const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-  // uc?export=view: <img> 태그 직접 임베딩에 검증된 표준 포맷
+  // ANYONE: 로그인 없이도 <img> 태그에서 직접 로드 가능
+  // ANYONE_WITH_LINK는 인증 쿠키가 없으면 Google 로그인 페이지로 리다이렉트됨
+  file.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
   return 'https://drive.google.com/uc?export=view&id=' + file.getId();
 }
 
