@@ -16,14 +16,14 @@ import { toast } from "sonner";
 export default function UploadPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { addNotification } = useNotifications();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [deal, setDeal] = useState<"나눔" | "판매">("나눔");
   const [price, setPrice] = useState("");
-  const [loc, setLoc] = useState(profile.loc || LOCATIONS[0]);
+  const [loc, setLoc] = useState(user?.loc || LOCATIONS[0]);
   const [desc, setDesc] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -67,7 +67,7 @@ export default function UploadPage() {
     try {
       let photoURL = "";
       if (webpBlob) {
-        photoURL = await uploadPhoto(webpBlob, user?.uid || "demo-user");
+        photoURL = await uploadPhoto(webpBlob, user?.email || "demo-user");
       }
 
       const item: NewProduct = {
@@ -77,8 +77,8 @@ export default function UploadPage() {
         price: deal === "나눔" ? 0 : Number(price),
         desc: desc.trim(),
         loc,
-        nick: profile.nick,
-        uid: user?.uid || "demo-user",
+        nick: user?.nick || "오이박사",
+        uid: user?.email || "demo-user",
         photoURL,
       };
 

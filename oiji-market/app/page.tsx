@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 
 export default function HomePage() {
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
     queryFn: listProducts,
@@ -142,8 +142,8 @@ export default function HomePage() {
         product={chatProduct}
         isOpen={!!chatProduct}
         onClose={() => setChatProduct(null)}
-        currentNick={profile.nick}
-        currentUid="demo-user"
+        currentNick={user?.nick || "오이박사"}
+        currentUid={user?.email || "demo-user"}
       />
     </div>
   );

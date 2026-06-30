@@ -5,122 +5,92 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
   type ReactNode,
 } from "react";
-import type { User } from "firebase/auth";
-import { isDemoMode } from "@/lib/firebase";
-import type { UserProfile } from "@/types";
+
+export interface UserProfile {
+  email: string;
+  nick: string;
+  loc: string;      // 근무지(픽업 위치)
+  dept: string;     // 소속(부서)
+}
 
 interface AuthState {
-  user: User | null;
-  profile: UserProfile;
+  user: UserProfile | null;
   loading: boolean;
-  isDemoMode: boolean;
-  signIn: () => Promise<void>;
-  signOut: () => Promise<void>;
+  signIn: (email: string) => void;
+  signOut: () => void;
   updateProfile: (p: Partial<UserProfile>) => void;
 }
 
-const defaultProfile: UserProfile = { nick: "오이박사", loc: "본사 3층" };
+const STORAGE_KEY = "oiji-auth";
 
 const AuthContext = createContext<AuthState>({
   user: null,
-  profile: defaultProfile,
   loading: true,
-  isDemoMode: true,
-  signIn: async () => {},
-  signOut: async () => {},
+  signIn: () => {},
+  signOut: () => {},
   updateProfile: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
-  const [loading, setLoading] = useState(!isDemoMode);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // 앱 시작 시 localStorage에서 세션 복원
   useEffect(() => {
-    if (isDemoMode) {
-      setLoading(false);
-      return;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setUser(JSON.parse(stored));
+      }
+    } catch {
+      // 무시
     }
-
-    let unsubscribe: (() => void) | undefined;
-
-    (async () => {
-      const { auth } = await import("@/lib/firebase");
-      const { onAuthStateChanged } = await import("firebase/auth");
-      if (!auth) return;
-
-      unsubscribe = onAuthStateChanged(auth, async (u) => {
-        setUser(u);
-        if (u) {
-          // Firestore에서 프로필 로드
-          try {
-            const { db } = await import("@/lib/firebase");
-            const { doc, getDoc } = await import("firebase/firestore");
-            if (db) {
-              const snap = await getDoc(doc(db, "users", u.uid));
-              if (snap.exists()) {
-                setProfile(snap.data() as UserProfile);
-              } else {
-                // 최초 로그인: 기본 프로필 설정
-                const newProfile = {
-                  nick: u.displayName || "오이박사",
-                  loc: "본사 3층",
-                };
-                setProfile(newProfile);
-              }
-            }
-          } catch {
-            setProfile({ nick: u.displayName || "오이박사", loc: "본사 3층" });
-          }
-        }
-        setLoading(false);
-      });
-    })();
-
-    return () => unsubscribe?.();
+    setLoading(false);
   }, []);
 
-  const signIn = async () => {
-    if (isDemoMode) return;
-    const { auth } = await import("@/lib/firebase");
-    const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
-    if (!auth) return;
-    await signInWithPopup(auth, new GoogleAuthProvider());
-  };
-
-  const signOutFn = async () => {
-    if (isDemoMode) return;
-    const { auth } = await import("@/lib/firebase");
-    const { signOut: fbSignOut } = await import("firebase/auth");
-    if (!auth) return;
-    await fbSignOut(auth);
-  };
-
-  const updateProfile = (patch: Partial<UserProfile>) => {
-    setProfile((prev) => ({ ...prev, ...patch }));
-
-    // Firestore에 저장 (비동기, 에러 무시)
-    if (!isDemoMode && user) {
-      (async () => {
-        try {
-          const { db } = await import("@/lib/firebase");
-          const { doc, setDoc } = await import("firebase/firestore");
-          if (db) {
-            await setDoc(doc(db, "users", user.uid), { ...profile, ...patch }, { merge: true });
-          }
-        } catch (e) {
-          console.error("프로필 저장 실패", e);
+  const signIn = useCallback((email: string) => {
+    const profile: UserProfile = {
+      email,
+      nick: email.split("@")[0],
+      loc: "본사 3층",
+      dept: "",
+    };
+    // 기존 프로필이 있으면 유지
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const prev = JSON.parse(stored);
+        if (prev.email === email) {
+          profile.nick = prev.nick || profile.nick;
+          profile.loc = prev.loc || profile.loc;
+          profile.dept = prev.dept || "";
         }
-      })();
-    }
-  };
+      }
+    } catch { /* 무시 */ }
+
+    setUser(profile);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  }, []);
+
+  const signOut = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  const updateProfile = useCallback((patch: Partial<UserProfile>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...patch };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, profile, loading, isDemoMode, signIn, signOut: signOutFn, updateProfile }}
-    >
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

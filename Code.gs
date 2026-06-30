@@ -74,6 +74,11 @@ function doGet() {
 function doPost(e) {
   try {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+
+    /* ── OTP 관련 액션은 토큰 검증 없이 허용 ── */
+    if (body.action === 'sendOtp')   return sendOtp_(body.email);
+    if (body.action === 'verifyOtp') return verifyOtp_(body.email, body.code);
+
     if (body.token !== getProp_('API_TOKEN')) return json_({ ok: false, error: 'unauthorized' });
 
     switch (body.action) {
@@ -85,6 +90,47 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
+}
+
+/* =========================================================
+ *  OTP 이메일 인증 — @gsretail.com 전용
+ *  ========================================================= */
+function sendOtp_(email) {
+  if (!email || !/@gsretail\.com$/i.test(email)) {
+    return json_({ ok: false, error: '@gsretail.com 이메일만 사용할 수 있어요' });
+  }
+  const code = String(Math.floor(100000 + Math.random() * 900000)); // 6자리 난수
+  const cache = CacheService.getScriptCache();
+  cache.put('otp_' + email.toLowerCase(), code, 300); // 5분 유효
+
+  GmailApp.sendEmail(email, '🥒 오이지마켓 로그인 인증번호', '',{
+    htmlBody:
+      '<div style="font-family:Pretendard,sans-serif;max-width:420px;margin:0 auto;padding:32px;' +
+      'background:#0a120d;color:#e9f2e8;border-radius:18px">' +
+      '<h2 style="margin:0 0 8px;color:#73d98a">🥒 오이(52)지마켓</h2>' +
+      '<p style="margin:0 0 24px;color:#8ba596;font-size:14px">사내 나눔·재판매 마켓</p>' +
+      '<p style="font-size:15px;line-height:1.6">안녕하세요! 로그인 인증번호입니다.</p>' +
+      '<div style="margin:24px 0;padding:20px;background:#14241b;border-radius:14px;' +
+      'text-align:center;border:1px solid #22382b">' +
+      '<span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#52c06e">' + code + '</span>' +
+      '</div>' +
+      '<p style="font-size:13px;color:#8ba596">이 코드는 <b style="color:#e9f2e8">5분간</b> 유효합니다.<br>' +
+      '본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>' +
+      '</div>'
+  });
+
+  return json_({ ok: true, message: '인증번호를 발송했어요' });
+}
+
+function verifyOtp_(email, code) {
+  if (!email || !code) return json_({ ok: false, error: '이메일과 인증번호를 입력해주세요' });
+  const cache = CacheService.getScriptCache();
+  const stored = cache.get('otp_' + email.toLowerCase());
+  if (!stored) return json_({ ok: false, error: '인증번호가 만료되었어요. 다시 요청해주세요' });
+  if (stored !== String(code).trim()) return json_({ ok: false, error: '인증번호가 일치하지 않아요' });
+
+  cache.remove('otp_' + email.toLowerCase());
+  return json_({ ok: true, email: email.toLowerCase() });
 }
 
 function createItem_(item) {
