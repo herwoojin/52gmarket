@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Product } from "@/types";
 import { Heart, MapPin, MessageCircle, Pencil } from "lucide-react";
 
@@ -20,9 +21,11 @@ export default function ProductCard({
   onClick,
   onEditClick,
 }: ProductCardProps) {
+  const [imgError, setImgError] = useState(false);
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
   const isOwner = !!currentUid && product.uid === currentUid;
+  const showImg = !!product.photoURL && !imgError;
 
   return (
     <article
@@ -35,12 +38,13 @@ export default function ProductCard({
     >
       {/* 썸네일 */}
       <div className="relative aspect-square overflow-hidden bg-skin-2">
-        {product.photoURL ? (
+        {showImg ? (
           <img
             src={product.photoURL}
             alt={product.title}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-4xl opacity-40">
