@@ -318,6 +318,7 @@ function doGet(e) {
     .filter(o => o.id && o.status !== '삭제')
     .map(o => ({
       id: String(o.id),
+      uid: String(o.uid || ''),      // ← 프론트에서 본인 매물 판별에 필수
       deal: o.deal || '나눔',
       category: o.category || '기타',
       title: o.title || '',

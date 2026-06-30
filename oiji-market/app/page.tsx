@@ -25,7 +25,17 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [openInEditMode, setOpenInEditMode] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
-  const [jjimedIds, setJjimedIds] = useState<Set<string>>(new Set());
+  // localStorage에서 이 유저의 찜 목록 복원
+  const jjimKey = `oiji-jjim-${user?.email ?? "guest"}`;
+  const [jjimedIds, setJjimedIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(jjimKey);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
 
   /* ── 실시간 동기화: 10초마다 ping → 시트 변경 감지 시 즉시 리프레시 ── */
   const lastModifiedRef = useRef<number>(0);
@@ -79,6 +89,11 @@ export default function HomePage() {
       const wasJjimed = next.has(id);
       if (wasJjimed) next.delete(id);
       else next.add(id);
+
+      // localStorage 영구 저장 (유저별)
+      try {
+        localStorage.setItem(jjimKey, JSON.stringify(Array.from(next)));
+      } catch { /* 무시 */ }
 
       const product = products.find((p) => p.id === id);
       if (product) {
