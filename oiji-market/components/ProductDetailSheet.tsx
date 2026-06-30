@@ -38,6 +38,16 @@ export default function ProductDetailSheet({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [detailImgError, setDetailImgError] = useState(false);
 
+  function normalizeDriveUrl(url: string | undefined): string {
+    if (!url || url.startsWith("blob:")) return "";
+    if (url.includes("drive.google.com/thumbnail")) {
+      const m = url.match(/id=([^&]+)/);
+      if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+    }
+    return url;
+  }
+  const resolvedDetailUrl = normalizeDriveUrl(product?.photoURL);
+
   // 편집 폼 상태
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -299,8 +309,8 @@ export default function ProductDetailSheet({
           /* ───────── 상세 보기 모드 ───────── */
           <div className="overflow-y-auto px-5 pb-36" style={{ maxHeight: "calc(90vh - 80px)" }}>
             <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-2xl bg-skin-2">
-              {product.photoURL && !detailImgError ? (
-                <img src={product.photoURL} alt={product.title} className="h-full w-full object-cover" onError={() => setDetailImgError(true)} />
+              {resolvedDetailUrl && !detailImgError ? (
+                <img src={resolvedDetailUrl} alt={product.title} className="h-full w-full object-cover" onError={() => setDetailImgError(true)} />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-7xl opacity-30">🥒</div>
               )}

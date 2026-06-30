@@ -13,6 +13,16 @@ interface ProductCardProps {
   onEditClick?: (product: Product) => void;
 }
 
+function normalizeDriveUrl(url: string | undefined): string {
+  if (!url || url.startsWith("blob:")) return "";
+  // thumbnail 포맷(이전 버그) → uc 포맷으로 변환
+  if (url.includes("drive.google.com/thumbnail")) {
+    const m = url.match(/id=([^&]+)/);
+    if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  }
+  return url;
+}
+
 export default function ProductCard({
   product,
   isJjimed = false,
@@ -25,7 +35,9 @@ export default function ProductCard({
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
   const isOwner = !!currentUid && product.uid === currentUid;
-  const showImg = !!product.photoURL && !imgError;
+  // blob: URL은 새로고침 시 만료 → 즉시 fallback; thumbnail 포맷은 uc 포맷으로 변환
+  const resolvedUrl = normalizeDriveUrl(product.photoURL);
+  const showImg = !!resolvedUrl && !imgError;
 
   return (
     <article
@@ -40,7 +52,7 @@ export default function ProductCard({
       <div className="relative aspect-square overflow-hidden bg-skin-2">
         {showImg ? (
           <img
-            src={product.photoURL}
+            src={resolvedUrl}
             alt={product.title}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"

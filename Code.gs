@@ -51,8 +51,8 @@ function uploadToDrive_(base64, filename, mimeType) {
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-  // thumbnail 포맷: <img> 태그에서 가장 안정적으로 로드됨
-  return 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w800';
+  // uc?export=view: <img> 태그 직접 임베딩에 검증된 표준 포맷
+  return 'https://drive.google.com/uc?export=view&id=' + file.getId();
 }
 
 /* =========================================================
