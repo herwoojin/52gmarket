@@ -472,12 +472,13 @@ function sendOtp_(email) {
   const cache = CacheService.getScriptCache();
   cache.put('otp_' + email.toLowerCase(), code, 300);
 
-  GmailApp.sendEmail(email, '🥒 오이지마켓 로그인 인증번호', '', {
+  GmailApp.sendEmail(email, '[오이(52)지마켓] 로그인 인증번호', '', {
+    name: '오이(52)지마켓',
     htmlBody:
       '<div style="font-family:Pretendard,sans-serif;max-width:420px;margin:0 auto;padding:32px;' +
       'background:#0a120d;color:#e9f2e8;border-radius:18px">' +
-      '<h2 style="margin:0 0 8px;color:#73d98a">🥒 오이(52)지마켓</h2>' +
-      '<p style="margin:0 0 24px;color:#8ba596;font-size:14px">사내 나눔·재판매 마켓</p>' +
+      '<h2 style="margin:0 0 8px;color:#73d98a">&#128951; 오이(52)지마켓</h2>' +
+      '<p style="margin:0 0 24px;color:#8ba596;font-size:14px">사내 나눔&#183;재판매 마켓</p>' +
       '<p style="font-size:15px;line-height:1.6">안녕하세요! 로그인 인증번호입니다.</p>' +
       '<div style="margin:24px 0;padding:20px;background:#14241b;border-radius:14px;' +
       'text-align:center;border:1px solid #22382b">' +
