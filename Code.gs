@@ -518,6 +518,7 @@ function sendOtp_(email) {
 
   GmailApp.sendEmail(email, '[오이(52)지마켓] 로그인 인증번호', '', {
     name: '오이(52)지마켓',
+    noReply: true,
     htmlBody:
       '<div style="font-family:Pretendard,sans-serif;max-width:420px;margin:0 auto;padding:32px;' +
       'background:#0a120d;color:#e9f2e8;border-radius:18px">' +
