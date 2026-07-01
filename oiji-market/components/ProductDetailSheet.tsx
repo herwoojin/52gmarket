@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { Product } from "@/types";
 import { CATEGORIES, LOCATIONS } from "@/types";
 import { Heart, MessageCircle, MapPin, Tag, X, CreditCard, Pencil, Trash2, Loader2 } from "lucide-react";
@@ -36,6 +37,7 @@ export default function ProductDetailSheet({
   onUpdate,
   onDelete,
 }: ProductDetailSheetProps) {
+  const router = useRouter();
   const [editMode, setEditMode] = useState(initialEditMode);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [detailImgSrc, setDetailImgSrc] = useState("");
@@ -394,6 +396,18 @@ export default function ProductDetailSheet({
             </>
           ) : isOwner ? (
             <>
+              <button
+                onClick={() => { handleClose(); router.push("/chats"); }}
+                className="relative flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-skin-line bg-skin-2 text-[15px] font-bold text-ink hover:border-cuke/40"
+              >
+                <MessageCircle size={18} />
+                받은 채팅
+                {product.chats > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {product.chats}
+                  </span>
+                )}
+              </button>
               <button onClick={openEdit}
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-cuke/60 bg-cuke/10 text-[15px] font-bold text-cuke transition-colors hover:bg-cuke/20">
                 <Pencil size={18} /> 수정하기

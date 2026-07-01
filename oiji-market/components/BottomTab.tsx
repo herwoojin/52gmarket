@@ -21,9 +21,10 @@ const tabs: TabItem[] = [
 
 interface BottomTabProps {
   notiBadge?: number;
+  chatBadge?: number;
 }
 
-export default function BottomTab({ notiBadge = 0 }: BottomTabProps) {
+export default function BottomTab({ notiBadge = 0, chatBadge = 0 }: BottomTabProps) {
   const pathname = usePathname();
 
   return (
@@ -69,6 +70,12 @@ export default function BottomTab({ notiBadge = 0 }: BottomTabProps) {
               {tab.label === "알림" && notiBadge > 0 && (
                 <span className="absolute -top-0.5 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
                   {notiBadge > 99 ? "99+" : notiBadge}
+                </span>
+              )}
+              {/* 채팅 배지 */}
+              {tab.label === "채팅" && chatBadge > 0 && (
+                <span className="absolute -top-0.5 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {chatBadge > 99 ? "99+" : chatBadge}
                 </span>
               )}
             </Link>
