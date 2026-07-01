@@ -54,6 +54,22 @@ export async function fetchSellerChats(sellerUid: string): Promise<SellerChatRoo
   }
 }
 
+const CHAT_READ_PREFIX = "oiji-chat-read-";
+
+export function markRoomAsRead(roomId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CHAT_READ_PREFIX + roomId, String(Date.now()));
+}
+
+export function getRoomLastRead(roomId: string): number {
+  if (typeof window === "undefined") return 0;
+  return Number(localStorage.getItem(CHAT_READ_PREFIX + roomId) || 0);
+}
+
+export function countUnreadRooms(rooms: SellerChatRoom[]): number {
+  return rooms.filter((r) => r.lastAt > getRoomLastRead(r.roomId)).length;
+}
+
 export async function sendMessage(
   roomId: string,
   msg: { senderUid: string; senderNick: string; text: string }

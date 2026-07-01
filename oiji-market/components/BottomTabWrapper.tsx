@@ -3,7 +3,7 @@
 import BottomTab from "@/components/BottomTab";
 import { useNotifications } from "@/lib/notifications";
 import { useQuery } from "@tanstack/react-query";
-import { fetchSellerChats } from "@/lib/chat";
+import { fetchSellerChats, countUnreadRooms } from "@/lib/chat";
 import { useAuth } from "@/lib/auth";
 
 export default function BottomTabWrapper() {
@@ -18,5 +18,5 @@ export default function BottomTabWrapper() {
     staleTime: 0,
   });
 
-  return <BottomTab notiBadge={unreadCount} chatBadge={sellerRooms.length} />;
+  return <BottomTab notiBadge={unreadCount} chatBadge={countUnreadRooms(sellerRooms)} />;
 }

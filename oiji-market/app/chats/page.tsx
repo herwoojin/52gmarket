@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchSellerChats, type SellerChatRoom } from "@/lib/chat";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchSellerChats,
+  markRoomAsRead,
+  getRoomLastRead,
+  type SellerChatRoom,
+} from "@/lib/chat";
 import { listProducts } from "@/lib/sheets";
 import ChatSheet from "@/components/ChatSheet";
 import type { Product } from "@/types";
@@ -11,7 +16,10 @@ import { MessageCircle, Loader2 } from "lucide-react";
 
 export default function ChatsPage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedRoom, setSelectedRoom] = useState<SellerChatRoom | null>(null);
+  // 읽음 상태를 리렌더 트리거하기 위한 로컬 카운터
+  const [readTick, setReadTick] = useState(0);
 
   const { data: rooms = [], isLoading } = useQuery({
     queryKey: ["sellerChats", user?.email],
@@ -28,6 +36,16 @@ export default function ChatsPage() {
   });
 
   if (!user) return null;
+
+  const isUnread = (room: SellerChatRoom) => room.lastAt > getRoomLastRead(room.roomId);
+
+  const openRoom = (room: SellerChatRoom) => {
+    markRoomAsRead(room.roomId);
+    setReadTick((t) => t + 1);
+    setSelectedRoom(room);
+    // 배지 카운트도 즉시 갱신
+    queryClient.invalidateQueries({ queryKey: ["sellerChats"] });
+  };
 
   const getProduct = (room: SellerChatRoom): Product => {
     const found = products.find((p) => p.id === room.productId);
@@ -72,38 +90,52 @@ export default function ChatsPage() {
 
       {!isLoading && rooms.length > 0 && (
         <div className="flex flex-col gap-2">
-          {rooms.map((room) => (
-            <button
-              key={room.roomId}
-              onClick={() => setSelectedRoom(room)}
-              className="w-full rounded-oiji border border-skin-line bg-skin-1 p-4 text-left transition-colors hover:border-cuke/40 active:scale-[0.99]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-1 text-[13px] font-bold text-cuke-bright">
-                    @{room.buyerNick || room.buyerUid.split("@")[0]}
-                  </p>
-                  <p className="mt-0.5 line-clamp-1 text-[12px] font-semibold text-ink">
-                    {room.productTitle}
-                  </p>
-                  <p className="mt-1 line-clamp-1 text-[12px] text-muted">{room.lastMsg}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {room.lastAt > 0 && (
-                    <p className="text-[11px] text-muted">
-                      {new Date(room.lastAt).toLocaleDateString("ko-KR", {
-                        month: "numeric",
-                        day: "numeric",
-                      })}
+          {rooms.map((room) => {
+            const unread = isUnread(room);
+            return (
+              <button
+                key={room.roomId + readTick}
+                onClick={() => openRoom(room)}
+                className={`w-full rounded-oiji border p-4 text-left transition-colors active:scale-[0.99] ${
+                  unread
+                    ? "border-cuke/40 bg-cuke/5 hover:border-cuke/60"
+                    : "border-skin-line bg-skin-1 hover:border-cuke/30"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {unread && (
+                        <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                      )}
+                      <p className={`line-clamp-1 text-[13px] font-bold ${unread ? "text-cuke" : "text-cuke-bright"}`}>
+                        @{room.buyerNick || room.buyerUid.split("@")[0]}
+                      </p>
+                    </div>
+                    <p className={`mt-0.5 line-clamp-1 text-[12px] ${unread ? "font-bold text-ink" : "font-semibold text-ink"}`}>
+                      {room.productTitle}
                     </p>
-                  )}
-                  <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted">
-                    <MessageCircle size={11} /> {room.msgCount}
-                  </span>
+                    <p className={`mt-1 line-clamp-1 text-[12px] ${unread ? "font-semibold text-ink/80" : "text-muted"}`}>
+                      {room.lastMsg}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {room.lastAt > 0 && (
+                      <p className="text-[11px] text-muted">
+                        {new Date(room.lastAt).toLocaleDateString("ko-KR", {
+                          month: "numeric",
+                          day: "numeric",
+                        })}
+                      </p>
+                    )}
+                    <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted">
+                      <MessageCircle size={11} /> {room.msgCount}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
 
