@@ -7,6 +7,7 @@ import { Heart, MessageCircle, MapPin, Tag, X, CreditCard, Pencil, Trash2, Loade
 import { uploadPhoto } from "@/lib/storage";
 import { toWebp } from "@/lib/webp";
 import { loadDriveImg } from "@/lib/driveImage";
+import { toast } from "sonner";
 
 interface ProductDetailSheetProps {
   product: Product | null;
@@ -59,6 +60,31 @@ export default function ProductDetailSheet({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // 편집 모드에서 스크린샷 붙여넣기 (Ctrl+V / ⌘V)
+  useEffect(() => {
+    if (!editMode) return;
+    const onPaste = async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imgItem = items.find(it => it.type.startsWith("image/"));
+      if (!imgItem) return;
+      const file = imgItem.getAsFile();
+      if (!file) return;
+      setUploading(true);
+      try {
+        const blob = await toWebp(file);
+        setPhotoBlob(blob);
+        setPreviewUrl(URL.createObjectURL(blob));
+        toast("📋 스크린샷 붙여넣기 완료!");
+      } catch {
+        toast.error("이미지 변환에 실패했어요");
+      } finally {
+        setUploading(false);
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [editMode]);
 
   if (!isOpen || !product) return null;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
@@ -34,12 +34,9 @@ export default function UploadPage() {
   const [converting, setConverting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processImg = useCallback(async (file: File) => {
     setOriginalFile(file);
     setConverting(true);
-
     try {
       const blob = await toWebp(file);
       setWebpBlob(blob);
@@ -51,7 +48,27 @@ export default function UploadPage() {
     } finally {
       setConverting(false);
     }
+  }, []);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await processImg(file);
   };
+
+  // 클립보드 붙여넣기 (스크린캡처 Ctrl+V / ⌘V)
+  useEffect(() => {
+    const onPaste = async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imgItem = items.find(it => it.type.startsWith("image/"));
+      if (!imgItem) return;
+      const file = imgItem.getAsFile();
+      if (!file) return;
+      toast("📋 클립보드 이미지 감지!");
+      await processImg(file);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [processImg]);
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -143,11 +160,15 @@ export default function UploadPage() {
         {!previewUrl ? (
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full rounded-oiji border-2 border-dashed border-skin-line bg-skin-1 px-6 py-8 text-center transition-colors active:border-cuke"
+            className="w-full rounded-oiji border-2 border-dashed border-skin-line bg-skin-1 px-6 py-8 text-center transition-colors hover:border-cuke/50 active:border-cuke"
           >
             <Camera size={34} className="mx-auto mb-2 text-muted" />
             <p className="text-[14px] font-bold text-ink">사진 선택 또는 촬영</p>
-            <p className="mt-1 text-[11.5px] text-muted">자동으로 WEBP 변환됩니다</p>
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-skin-2 px-3 py-1.5 text-[11.5px] font-semibold text-cuke-bright">
+              <Upload size={11} />
+              스크린샷은 <kbd className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-mono text-white">⌘V</kbd> / <kbd className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-mono text-white">Ctrl+V</kbd> 로 바로 붙여넣기
+            </p>
+            <p className="mt-2 text-[11px] text-muted">자동으로 WEBP 변환됩니다</p>
           </button>
         ) : (
           <div className="flex gap-3 rounded-oiji border border-skin-line bg-skin-1 p-3">
