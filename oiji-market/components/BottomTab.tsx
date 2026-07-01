@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, MessageCircle, Plus, Bell, User } from "lucide-react";
+import { Home, MessageCircle, Plus, Bell, User, Trophy } from "lucide-react";
 
 interface TabItem {
   href: string;
@@ -15,6 +15,7 @@ const tabs: TabItem[] = [
   { href: "/", label: "홈", icon: Home },
   { href: "/chats", label: "채팅", icon: MessageCircle },
   { href: "/upload", label: "올리기", icon: Plus, fab: true },
+  { href: "/ranking", label: "랭킹", icon: Trophy },
   { href: "/noti", label: "알림", icon: Bell },
   { href: "/me", label: "내정보", icon: User },
 ];
@@ -58,7 +59,7 @@ export default function BottomTab({ notiBadge = 0, chatBadge = 0 }: BottomTabPro
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative flex flex-col items-center gap-0.5 px-3 pt-2.5 pb-1 transition-colors ${
+              className={`relative flex flex-col items-center gap-0.5 px-2 pt-2.5 pb-1 transition-colors ${
                 active ? "text-cuke" : "text-muted"
               }`}
             >
