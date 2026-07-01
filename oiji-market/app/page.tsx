@@ -23,6 +23,7 @@ export default function HomePage() {
   const [catFilter, setCatFilter] = useState<string>("전체");
   const [dealFilter, setDealFilter] = useState<string>("전체");
   const [locFilter, setLocFilter] = useState<string>("전체");
+  const [statusFilter, setStatusFilter] = useState<string>("전체");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [openInEditMode, setOpenInEditMode] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
@@ -69,8 +70,9 @@ export default function HomePage() {
       .filter((p) => catFilter === "전체" || p.category === catFilter)
       .filter((p) => dealFilter === "전체" || p.deal === dealFilter)
       .filter((p) => locFilter === "전체" || p.loc === locFilter)
+      .filter((p) => statusFilter === "전체" || p.status === statusFilter)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [products, catFilter, dealFilter, locFilter]);
+  }, [products, catFilter, dealFilter, locFilter, statusFilter]);
 
   const handleUpdate = async (id: string, patch: Partial<(typeof products)[0]>) => {
     await updateProduct(id, patch);
@@ -129,8 +131,9 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* 거래방식 + 위치 필터 (같은 줄) */}
-      <div className="mb-3 flex items-center gap-2">
+      {/* 거래방식 + 판매상태 + 위치 필터 */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {/* 거래방식 */}
         {DEALS.map((deal) => (
           <button
             key={deal}
@@ -144,6 +147,28 @@ export default function HomePage() {
             {deal}
           </button>
         ))}
+
+        {/* 구분선 */}
+        <span className="h-5 w-px bg-skin-line" />
+
+        {/* 판매상태 */}
+        {(["전체", "판매중", "거래완료"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-all ${
+              statusFilter === s
+                ? s === "거래완료"
+                  ? "border-neutral-500 bg-neutral-600 text-neutral-100"
+                  : "border-cuke bg-cuke text-skin-0"
+                : "border-skin-line bg-skin-1 text-muted hover:border-cuke/50"
+            }`}
+          >
+            {s === "전체" ? "전체" : s === "판매중" ? "🟢 판매중" : "✅ 거래완료"}
+          </button>
+        ))}
+
+        {/* 위치 드롭다운 */}
         <div className="ml-auto">
           <select
             value={locFilter}
