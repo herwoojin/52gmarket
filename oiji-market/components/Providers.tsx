@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth";
 import { NotificationProvider } from "@/lib/notifications";
+import { ThemeProvider } from "@/lib/theme";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
           {children}
@@ -37,6 +39,7 @@ export function Providers({ children }: { children: ReactNode }) {
           />
         </NotificationProvider>
       </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

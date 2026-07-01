@@ -6,8 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { updateNickForUser } from "@/lib/sheets";
 import { fetchBankInfo, saveBankInfo, type BankInfo } from "@/lib/payment";
+import { useTheme } from "@/lib/theme";
 import { LOCATIONS } from "@/types";
-import { LogOut, MapPin, Shield, Building2, User, Loader2, Landmark } from "lucide-react";
+import { LogOut, MapPin, Shield, Building2, User, Loader2, Landmark, Sparkles, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const BANKS = [
@@ -16,10 +17,35 @@ const BANKS = [
   "새마을금고", "우체국", "기타",
 ];
 
+const THEMES = [
+  {
+    id: "default" as const,
+    name: "오이그린",
+    desc: "오이마켓 기본 다크 그린",
+    preview: "bg-gradient-to-br from-[#0a120d] via-[#0e1813] to-[#14241b] border border-[#22382b]",
+  },
+  {
+    id: "galaxy" as const,
+    name: "우주(갤럭시)",
+    desc: "어두운 하늘에 별이 깜빡이는 신비로운 분위기",
+    icon: <Sparkles size={12} className="text-purple-400" />,
+    preview: "bg-gradient-to-br from-[#050510] via-[#0a0a1f] to-[#1a0a3a] border border-[#1e1e3e]",
+  },
+  {
+    id: "paper" as const,
+    name: "종이",
+    desc: "베이지 종이 질감, 눈이 편안한 따뜻한 톤",
+    icon: <FileText size={12} className="text-amber-700" />,
+    preview: "border border-amber-200",
+    previewStyle: { background: "radial-gradient(at 30% 30%, rgba(248,240,218,0.7), transparent 60%), radial-gradient(at 70% 70%, rgba(180,165,130,0.4), transparent 55%), rgb(223,212,186)" },
+  },
+] as const;
+
 export default function MePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, signOut, updateProfile } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [bankInfo, setBankInfo] = useState<BankInfo>({ bankName: "", accountNumber: "", holderName: "" });
   const [savingBank, setSavingBank] = useState(false);
@@ -32,6 +58,10 @@ export default function MePage() {
   }, [user?.email]);
 
   if (!user) return null;
+
+  // 기타: 목록에 없는 값은 커스텀 입력으로 처리
+  const isCustomLoc = !(LOCATIONS as readonly string[]).includes(user.loc);
+  const locSelectValue = isCustomLoc ? "기타" : user.loc;
 
   const handleSignOut = () => {
     signOut();
@@ -130,14 +160,27 @@ export default function MePage() {
       <div className="mb-6">
         <label className="mb-2 block text-[13px] font-bold">근무지 (픽업 위치)</label>
         <select
-          value={user.loc}
-          onChange={(e) => updateProfile({ loc: e.target.value })}
+          value={locSelectValue}
+          onChange={(e) => {
+            if (e.target.value === "기타") updateProfile({ loc: "" });
+            else updateProfile({ loc: e.target.value });
+          }}
           className="w-full appearance-none rounded-xl border border-skin-line bg-skin-1 px-4 py-3.5 text-[15px] text-ink outline-none transition-colors focus:border-cuke"
         >
           {LOCATIONS.map((l) => (
             <option key={l} value={l}>{l}</option>
           ))}
         </select>
+        {(locSelectValue === "기타" || isCustomLoc) && (
+          <input
+            type="text"
+            value={user.loc}
+            onChange={(e) => updateProfile({ loc: e.target.value })}
+            placeholder="위치를 직접 입력하세요 (예: 마포 오피스)"
+            className="mt-2 w-full rounded-xl border border-cuke/50 bg-skin-1 px-4 py-3 text-[15px] text-ink outline-none transition-colors focus:border-cuke"
+            autoFocus
+          />
+        )}
       </div>
 
       {/* 프로필 저장 */}
@@ -150,7 +193,39 @@ export default function MePage() {
         {saving ? "저장 중..." : "프로필 저장"}
       </button>
 
-      {/* ── 계좌 정보 (계좌이체 결제 시 구매자에게 공유됨) ── */}
+      {/* ── 화면 테마 ── */}
+      <div className="mb-8 rounded-oiji border border-skin-line bg-skin-1 p-5">
+        <h4 className="mb-1 text-[14px] font-extrabold">🎨 화면 테마</h4>
+        <p className="mb-4 text-[11px] text-muted">배경 테마를 선택하면 즉시 적용됩니다.</p>
+        <div className="grid grid-cols-3 gap-2">
+          {THEMES.map((t) => {
+            const active = theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className={`rounded-xl border-2 p-2.5 text-left transition-all ${
+                  active ? "border-cuke ring-2 ring-cuke/30" : "border-skin-line hover:border-cuke/40"
+                }`}
+              >
+                <div
+                  className={`mb-2 h-14 rounded-lg ${t.preview}`}
+                  style={"previewStyle" in t ? t.previewStyle : undefined}
+                />
+                <p className="flex items-center gap-1 text-[12px] font-bold text-ink">
+                  {"icon" in t ? t.icon : null}
+                  {t.name}
+                  {active && <span className="ml-auto text-cuke">✓</span>}
+                </p>
+                <p className="mt-0.5 text-[10px] leading-tight text-muted">{t.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-[11px] text-muted">테마 설정은 현재 디바이스에만 적용됩니다.</p>
+      </div>
+
+      {/* ── 계좌 정보 ── */}
       <div className="mb-8 rounded-oiji border border-skin-line bg-skin-1 p-5">
         <h4 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold">
           <Landmark size={15} className="text-blue-400" />

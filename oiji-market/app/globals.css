@@ -59,6 +59,48 @@ body {
   animation: fadeIn 0.25s ease;
 }
 
+/* ── 테마: 기본 (밝은 블루) ── */
+[data-theme="basic"] {
+  --color-skin-0: #f0f4ff;
+  --color-skin-1: #e8eeff;
+  --color-skin-2: #dde5ff;
+  --color-skin-line: #c5d0f0;
+  --color-ink: #1a2060;
+  --color-muted: #6b7a99;
+  --color-cuke: #3b82f6;
+  --color-cuke-bright: #60a5fa;
+  --color-flesh: #bfdbfe;
+  --color-seed: #dbeafe;
+}
+
+/* ── 테마: 우주(갤럭시) ── */
+[data-theme="galaxy"] {
+  --color-skin-0: #050510;
+  --color-skin-1: #0a0a1f;
+  --color-skin-2: #0e0e2a;
+  --color-skin-line: #1e1e3e;
+  --color-ink: #e8e8ff;
+  --color-muted: #7070a8;
+  --color-cuke: #7c3aed;
+  --color-cuke-bright: #a78bfa;
+  --color-flesh: #4c1d95;
+  --color-seed: #2e1065;
+}
+
+/* ── 테마: 종이 ── */
+[data-theme="paper"] {
+  --color-skin-0: #faf5eb;
+  --color-skin-1: #f5ede0;
+  --color-skin-2: #ece0cc;
+  --color-skin-line: #d8c8b0;
+  --color-ink: #3d2e1e;
+  --color-muted: #8b7355;
+  --color-cuke: #d97706;
+  --color-cuke-bright: #f59e0b;
+  --color-flesh: #fde68a;
+  --color-seed: #fffbeb;
+}
+
 /* 토스트 커스텀 */
 [data-sonner-toaster] [data-sonner-toast] {
   --normal-bg: var(--color-skin-2);
