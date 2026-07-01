@@ -8,6 +8,7 @@ import { Heart, MessageCircle, MapPin, Tag, X, CreditCard, Pencil, Trash2, Loade
 import { uploadPhoto } from "@/lib/storage";
 import { toWebp } from "@/lib/webp";
 import { loadDriveImg } from "@/lib/driveImage";
+import { confirmDeposit } from "@/lib/payment";
 import { toast } from "sonner";
 
 interface ProductDetailSheetProps {
@@ -93,6 +94,7 @@ export default function ProductDetailSheet({
   const isOwner = !!currentUid && product.uid === currentUid;
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
+  const isPending = product.status === "입금대기";
 
   const openEdit = () => {
     setTitle(product.title);
@@ -150,6 +152,20 @@ export default function ProductDetailSheet({
       });
       setEditMode(false);
       onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmDeposit = async () => {
+    setSaving(true);
+    try {
+      await confirmDeposit(product.id);
+      await onUpdate?.(product.id, { status: "거래완료" });
+      toast("✅ 입금 확인 완료! 거래가 성사됐어요.");
+      onClose();
+    } catch {
+      toast.error("오류가 발생했어요");
     } finally {
       setSaving(false);
     }
@@ -344,6 +360,11 @@ export default function ProductDetailSheet({
                   <span className="rounded-xl bg-neutral-600 px-6 py-3 text-lg font-extrabold text-white">거래완료</span>
                 </div>
               )}
+              {isPending && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <span className="rounded-xl bg-amber-500 px-6 py-3 text-lg font-extrabold text-white">입금대기 중</span>
+                </div>
+              )}
             </div>
 
             <h2 className="text-xl font-extrabold leading-tight tracking-tight">{product.title}</h2>
@@ -396,6 +417,16 @@ export default function ProductDetailSheet({
             </>
           ) : isOwner ? (
             <>
+              {isPending ? (
+                <button
+                  onClick={handleConfirmDeposit}
+                  disabled={saving}
+                  className="flex h-12 flex-[2] items-center justify-center gap-2 rounded-2xl bg-amber-500 text-[15px] font-extrabold text-white disabled:opacity-60"
+                >
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : "✅"}
+                  입금 확인
+                </button>
+              ) : null}
               <button
                 onClick={() => { handleClose(); router.push("/chats"); }}
                 className="relative flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-skin-line bg-skin-2 text-[15px] font-bold text-ink hover:border-cuke/40"
@@ -408,14 +439,18 @@ export default function ProductDetailSheet({
                   </span>
                 )}
               </button>
-              <button onClick={openEdit}
-                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-cuke/60 bg-cuke/10 text-[15px] font-bold text-cuke transition-colors hover:bg-cuke/20">
-                <Pencil size={18} /> 수정하기
-              </button>
-              <button onClick={() => { openEdit(); setTimeout(() => setConfirmDelete(true), 0); }}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-500/30 text-red-400 hover:bg-red-500/10">
-                <Trash2 size={18} />
-              </button>
+              {!isPending && (
+                <>
+                  <button onClick={openEdit}
+                    className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-cuke/60 bg-cuke/10 text-[15px] font-bold text-cuke transition-colors hover:bg-cuke/20">
+                    <Pencil size={18} /> 수정하기
+                  </button>
+                  <button onClick={() => { openEdit(); setTimeout(() => setConfirmDelete(true), 0); }}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-500/30 text-red-400 hover:bg-red-500/10">
+                    <Trash2 size={18} />
+                  </button>
+                </>
+              )}
             </>
           ) : (
             <>

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import AppShell from "@/components/AppShell";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "오이(52)지마켓",
@@ -30,6 +31,7 @@ export default function RootLayout({
     <html lang="ko" className="h-full antialiased">
       <body className="flex min-h-dvh flex-col bg-skin-0 text-ink">
         <Providers>
+          <ServiceWorkerRegister />
           <AppShell>{children}</AppShell>
         </Providers>
       </body>

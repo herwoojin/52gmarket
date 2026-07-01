@@ -1,19 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { updateNickForUser } from "@/lib/sheets";
+import { fetchBankInfo, saveBankInfo, type BankInfo } from "@/lib/payment";
 import { LOCATIONS } from "@/types";
-import { LogOut, MapPin, Shield, Building2, User, Loader2 } from "lucide-react";
+import { LogOut, MapPin, Shield, Building2, User, Loader2, Landmark } from "lucide-react";
 import { toast } from "sonner";
+
+const BANKS = [
+  "KB국민은행", "신한은행", "우리은행", "하나은행", "농협은행",
+  "기업은행", "SC제일은행", "카카오뱅크", "토스뱅크", "케이뱅크",
+  "새마을금고", "우체국", "기타",
+];
 
 export default function MePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, signOut, updateProfile } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [bankInfo, setBankInfo] = useState<BankInfo>({ bankName: "", accountNumber: "", holderName: "" });
+  const [savingBank, setSavingBank] = useState(false);
+
+  useEffect(() => {
+    if (!user?.email) return;
+    fetchBankInfo(user.email).then((info) => {
+      if (info) setBankInfo(info);
+    });
+  }, [user?.email]);
 
   if (!user) return null;
 
@@ -33,6 +49,22 @@ export default function MePage() {
       toast.error("저장 중 오류가 발생했어요");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveBank = async () => {
+    if (!bankInfo.bankName || !bankInfo.accountNumber || !bankInfo.holderName) {
+      toast.error("은행명, 계좌번호, 예금주를 모두 입력해주세요");
+      return;
+    }
+    setSavingBank(true);
+    try {
+      await saveBankInfo(user.email, bankInfo);
+      toast("계좌 정보를 저장했어요. 구매자가 계좌이체 시 이 정보가 사용돼요.");
+    } catch {
+      toast.error("저장 중 오류가 발생했어요");
+    } finally {
+      setSavingBank(false);
     }
   };
 
@@ -58,8 +90,6 @@ export default function MePage() {
             )}
           </div>
         </div>
-
-        {/* 로그인 이메일 */}
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-skin-2 px-3 py-2 text-[12px] text-muted">
           <User size={13} className="text-cuke" />
           {user.email}
@@ -81,7 +111,7 @@ export default function MePage() {
         />
       </div>
 
-      {/* 소속 (부서) */}
+      {/* 소속 */}
       <div className="mb-4">
         <label className="mb-2 block text-[13px] font-bold">
           <Building2 size={13} className="mr-1 inline text-cuke" />
@@ -105,9 +135,7 @@ export default function MePage() {
           className="w-full appearance-none rounded-xl border border-skin-line bg-skin-1 px-4 py-3.5 text-[15px] text-ink outline-none transition-colors focus:border-cuke"
         >
           {LOCATIONS.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
+            <option key={l} value={l}>{l}</option>
           ))}
         </select>
       </div>
@@ -116,11 +144,66 @@ export default function MePage() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-cuke px-6 py-4 text-[16px] font-extrabold text-skin-0 transition-all active:scale-[0.98] disabled:opacity-60"
+        className="mb-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-cuke px-6 py-4 text-[16px] font-extrabold text-skin-0 transition-all active:scale-[0.98] disabled:opacity-60"
       >
         {saving ? <Loader2 size={18} className="animate-spin" /> : null}
         {saving ? "저장 중..." : "프로필 저장"}
       </button>
+
+      {/* ── 계좌 정보 (계좌이체 결제 시 구매자에게 공유됨) ── */}
+      <div className="mb-8 rounded-oiji border border-skin-line bg-skin-1 p-5">
+        <h4 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold">
+          <Landmark size={15} className="text-blue-400" />
+          계좌 정보
+        </h4>
+        <p className="mb-4 text-[11px] text-muted">
+          구매자가 계좌이체를 선택할 때 자동으로 공유됩니다
+        </p>
+
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[12px] font-bold text-muted">은행</label>
+          <select
+            value={bankInfo.bankName}
+            onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })}
+            className="w-full appearance-none rounded-xl border border-skin-line bg-skin-2 px-4 py-3 text-[14px] text-ink outline-none focus:border-cuke"
+          >
+            <option value="">은행 선택</option>
+            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[12px] font-bold text-muted">계좌번호</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={bankInfo.accountNumber}
+            onChange={(e) => setBankInfo({ ...bankInfo, accountNumber: e.target.value })}
+            placeholder="숫자만 입력 (예: 1234-56-789012)"
+            className="w-full rounded-xl border border-skin-line bg-skin-2 px-4 py-3 text-[14px] text-ink outline-none focus:border-cuke"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1.5 block text-[12px] font-bold text-muted">예금주</label>
+          <input
+            type="text"
+            value={bankInfo.holderName}
+            onChange={(e) => setBankInfo({ ...bankInfo, holderName: e.target.value })}
+            placeholder="예금주 이름"
+            className="w-full rounded-xl border border-skin-line bg-skin-2 px-4 py-3 text-[14px] text-ink outline-none focus:border-cuke"
+          />
+        </div>
+
+        <button
+          onClick={handleSaveBank}
+          disabled={savingBank}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-400/40 bg-blue-500/10 py-3 text-[14px] font-bold text-blue-300 disabled:opacity-50"
+        >
+          {savingBank ? <Loader2 size={15} className="animate-spin" /> : null}
+          계좌 정보 저장
+        </button>
+      </div>
 
       {/* 로그아웃 */}
       <button
@@ -142,7 +225,6 @@ export default function MePage() {
         </p>
       </div>
 
-      {/* 앱 정보 */}
       <div className="mt-6 text-center text-[11px] text-muted">
         <p>🥒 오이(52)지마켓 v0.2.0</p>
         <p className="mt-1">사내 전산소모품·사무용품 나눔/재판매</p>

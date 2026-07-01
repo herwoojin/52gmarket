@@ -362,6 +362,13 @@ function doGet(e) {
     return getSellerChats_(params.uid);
   }
 
+  /* ── 판매자 계좌 정보 조회 ── */
+  if (params.action === 'bankInfo' && params.uid) {
+    var bankKey = 'BANK_' + String(params.uid);
+    var bankRaw = getProp_(bankKey);
+    return json_({ ok: true, info: bankRaw ? JSON.parse(bankRaw) : null });
+  }
+
   /* ── 랭킹 ── */
   if (params.action === 'ranking') {
     return getRankingData_();
@@ -448,6 +455,43 @@ function doPost(e) {
       case 'updateNick':
         updateNickForUser_(body.uid, body.nick);
         result = json_({ ok: true });
+        break;
+      case 'setBankInfo':
+        if (!body.uid || !body.info) return json_({ ok: false, error: 'invalid' });
+        setProp_('BANK_' + String(body.uid), JSON.stringify({
+          bankName: body.info.bankName || '',
+          accountNumber: body.info.accountNumber || '',
+          holderName: body.info.holderName || ''
+        }));
+        result = json_({ ok: true });
+        break;
+      case 'notifyPayment':
+        // 구매자가 입금완료 통보 → 상태를 '입금대기'로 변경
+        updateItem_(body.id, { status: '입금대기' });
+        result = json_({ ok: true });
+        break;
+      case 'confirmDeposit':
+        // 판매자가 입금 확인 → 거래완료
+        updateItem_(body.id, { status: '거래완료' });
+        result = json_({ ok: true });
+        break;
+      case 'stripeIntent':
+        var stripeKey = getProp_('STRIPE_SECRET_KEY');
+        if (!stripeKey) return json_({ ok: false, error: 'not_configured' });
+        try {
+          var stripeResp = UrlFetchApp.fetch('https://api.stripe.com/v1/payment_intents', {
+            method: 'post',
+            headers: { 'Authorization': 'Bearer ' + stripeKey },
+            payload: 'amount=' + String(Math.max(1, Number(body.amount))) +
+                     '&currency=krw&automatic_payment_methods[enabled]=true',
+            muteHttpExceptions: true
+          });
+          var stripeData = JSON.parse(stripeResp.getContentText());
+          if (stripeData.error) return json_({ ok: false, error: stripeData.error.message });
+          result = json_({ ok: true, clientSecret: stripeData.client_secret });
+        } catch(e) {
+          return json_({ ok: false, error: String(e) });
+        }
         break;
       default:
         return json_({ ok: false, error: 'unknown action' });

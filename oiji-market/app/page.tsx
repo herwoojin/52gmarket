@@ -6,6 +6,7 @@ import { listProducts, updateProduct, removeProduct, getLastModified } from "@/l
 import ProductCard from "@/components/ProductCard";
 import ProductDetailSheet from "@/components/ProductDetailSheet";
 import ChatSheet from "@/components/ChatSheet";
+import PaymentSheet from "@/components/PaymentSheet";
 import type { Product } from "@/types";
 import { CATEGORIES, DEALS, LOCATIONS } from "@/types";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [openInEditMode, setOpenInEditMode] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
+  const [payProduct, setPayProduct] = useState<Product | null>(null);
   // localStorage에서 이 유저의 찜 목록 복원
   const jjimKey = `oiji-jjim-${user?.email ?? "guest"}`;
   const [jjimedIds, setJjimedIds] = useState<Set<string>>(() => {
@@ -236,14 +238,15 @@ export default function HomePage() {
           setSelectedProduct(null);
           setChatProduct(p);
         }}
-        onPay={() => {
-          toast("💳 결제 기능은 토스페이먼츠 키 설정 후 사용 가능해요");
+        onPay={(p) => {
+          setSelectedProduct(null);
+          setPayProduct(p);
         }}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
       />
 
-      {/* 채팅 시트 — key가 바뀌면 state 자동 리셋 */}
+      {/* 채팅 시트 */}
       <ChatSheet
         key={chatProduct?.id ?? "closed"}
         product={chatProduct}
@@ -251,6 +254,21 @@ export default function HomePage() {
         onClose={() => setChatProduct(null)}
         currentNick={user?.nick || "오이박사"}
         currentUid={user?.email || "demo-user"}
+      />
+
+      {/* 결제 시트 */}
+      <PaymentSheet
+        key={payProduct?.id ?? "pay-closed"}
+        product={payProduct}
+        isOpen={!!payProduct}
+        onClose={() => setPayProduct(null)}
+        currentNick={user?.nick || "오이박사"}
+        currentUid={user?.email || ""}
+        onDone={() => {
+          setPayProduct(null);
+          queryClient.invalidateQueries({ queryKey: ["products"] });
+          toast("🎉 거래가 완료됐어요!");
+        }}
       />
     </div>
   );

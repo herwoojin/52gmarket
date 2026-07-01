@@ -1,24 +1,78 @@
 {
+  "id": "/",
   "name": "오이(52)지마켓",
   "short_name": "오이지마켓",
   "description": "사내 전산소모품·사무용품 나눔/재판매 마켓플레이스",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a120d",
   "theme_color": "#0a120d",
   "orientation": "portrait-primary",
+  "dir": "ltr",
+  "lang": "ko",
+  "categories": ["business", "shopping"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "오이(52)지마켓 데스크톱 화면"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "오이(52)지마켓 모바일 화면"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "매물 등록",
+      "short_name": "등록",
+      "url": "/upload",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "장바구니",
+      "short_name": "항아리",
+      "url": "/jar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "랭킹",
+      "short_name": "랭킹",
+      "url": "/ranking",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

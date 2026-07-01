@@ -2,7 +2,7 @@
 export interface Product {
   id: string;
   createdAt: string;
-  status: '판매중' | '거래완료' | '삭제';
+  status: '판매중' | '거래완료' | '삭제' | '입금대기';
   deal: '나눔' | '판매';
   category: '전산소모품' | '사무용품' | '가구·비품' | '기타';
   title: string;
