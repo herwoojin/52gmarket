@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, Trophy, Plus, Bell, User } from "lucide-react";
+import { Home, MessageCircle, Plus, Bell, User } from "lucide-react";
 
 interface TabItem {
   href: string;
@@ -13,7 +13,7 @@ interface TabItem {
 
 const tabs: TabItem[] = [
   { href: "/", label: "홈", icon: Home },
-  { href: "/ranking", label: "랭킹", icon: Trophy },
+  { href: "/chats", label: "채팅", icon: MessageCircle },
   { href: "/upload", label: "올리기", icon: Plus, fab: true },
   { href: "/noti", label: "알림", icon: Bell },
   { href: "/me", label: "내정보", icon: User },

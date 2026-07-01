@@ -20,6 +20,8 @@ interface ChatSheetProps {
   onClose: () => void;
   currentNick: string;
   currentUid: string;
+  roomIdOverride?: string;
+  sellerView?: boolean;
 }
 
 export default function ChatSheet({
@@ -28,6 +30,8 @@ export default function ChatSheet({
   onClose,
   currentNick,
   currentUid,
+  roomIdOverride,
+  sellerView = false,
 }: ChatSheetProps) {
   // key prop이 product.id로 바뀔 때 자동 리셋되므로 초기값을 loading=true로 설정
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -45,7 +49,7 @@ export default function ChatSheet({
       return;
     }
 
-    const roomId = buildRoomId(product.id, product.uid, currentUid);
+    const roomId = roomIdOverride ?? buildRoomId(product.id, product.uid, currentUid);
     roomIdRef.current = roomId;
 
     // 첫 로드 — setState는 항상 콜백 안에서만 호출
@@ -61,7 +65,7 @@ export default function ChatSheet({
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [isOpen, product, currentUid]);
+  }, [isOpen, product, currentUid, roomIdOverride]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -105,7 +109,7 @@ export default function ChatSheet({
 
   if (!isOpen || !product) return null;
 
-  const isSelf = product.uid === currentUid;
+  const isSelf = !sellerView && product.uid === currentUid;
 
   return (
     <>

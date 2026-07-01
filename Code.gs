@@ -357,6 +357,11 @@ function doGet(e) {
     return getChatMessages_(params.roomId);
   }
 
+  /* ── 판매자 채팅 목록 ── */
+  if (params.action === 'sellerChats' && params.uid) {
+    return getSellerChats_(params.uid);
+  }
+
   /* ── 랭킹 ── */
   if (params.action === 'ranking') {
     return getRankingData_();
@@ -755,6 +760,70 @@ function getChatMessages_(roomId) {
     .sort((a, b) => a.createdAt - b.createdAt);
 
   return json_({ ok: true, messages });
+}
+
+function getSellerChats_(sellerUid) {
+  var sh = getSheet_();
+  var data = sh.getDataRange().getValues();
+  var head = data[0];
+  var uidCol = head.indexOf('uid');
+  var idCol = head.indexOf('id');
+  var titleCol = head.indexOf('title');
+  var statusCol = head.indexOf('status');
+
+  var myProducts = {};
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][uidCol]) === sellerUid && String(data[i][statusCol]) !== '삭제') {
+      myProducts[String(data[i][idCol])] = String(data[i][titleCol] || '');
+    }
+  }
+  if (Object.keys(myProducts).length === 0) return json_({ ok: true, rooms: [] });
+
+  var chatSh = getChatSheet_();
+  var chatData = chatSh.getDataRange().getValues();
+  var chatHead = chatData.shift();
+  var ridIdx = chatHead.indexOf('roomId');
+  var senderUidIdx = chatHead.indexOf('senderUid');
+  var senderNickIdx = chatHead.indexOf('senderNick');
+  var textIdx = chatHead.indexOf('text');
+  var createdAtIdx = chatHead.indexOf('createdAt');
+
+  var roomMap = {};
+  chatData.forEach(function(r) {
+    var roomId = String(r[ridIdx]);
+    var parts = roomId.split('__');
+    if (parts.length < 3) return;
+    var productId = parts[0];
+    if (!myProducts[productId]) return;
+
+    var createdAt = r[createdAtIdx] ? new Date(r[createdAtIdx]).getTime() : 0;
+    if (!roomMap[roomId]) {
+      var uid1 = parts[1];
+      var uid2 = parts[2];
+      var buyerUid = uid1 === sellerUid ? uid2 : uid1;
+      roomMap[roomId] = {
+        roomId: roomId,
+        productId: productId,
+        productTitle: myProducts[productId],
+        buyerUid: buyerUid,
+        buyerNick: '',
+        lastMsg: '',
+        lastAt: 0,
+        msgCount: 0
+      };
+    }
+    roomMap[roomId].msgCount++;
+    if (createdAt > roomMap[roomId].lastAt) {
+      roomMap[roomId].lastAt = createdAt;
+      roomMap[roomId].lastMsg = String(r[textIdx] || '');
+      if (String(r[senderUidIdx]) !== sellerUid) {
+        roomMap[roomId].buyerNick = String(r[senderNickIdx] || '');
+      }
+    }
+  });
+
+  var rooms = Object.values(roomMap).sort(function(a, b) { return b.lastAt - a.lastAt; });
+  return json_({ ok: true, rooms: rooms });
 }
 
 function sendChatMessage_(roomId, msg) {

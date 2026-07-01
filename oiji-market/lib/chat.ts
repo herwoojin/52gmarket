@@ -29,6 +29,31 @@ export async function fetchMessages(roomId: string): Promise<ChatMsg[]> {
   }
 }
 
+export interface SellerChatRoom {
+  roomId: string;
+  productId: string;
+  productTitle: string;
+  buyerUid: string;
+  buyerNick: string;
+  lastMsg: string;
+  lastAt: number;
+  msgCount: number;
+}
+
+export async function fetchSellerChats(sellerUid: string): Promise<SellerChatRoom[]> {
+  if (isDemoMode || !sellerUid) return [];
+  try {
+    const res = await fetch(
+      `${APPS_SCRIPT_URL}?action=sellerChats&uid=${encodeURIComponent(sellerUid)}`,
+      { cache: "no-store" }
+    );
+    const data = await res.json();
+    return (data.rooms as SellerChatRoom[]) || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function sendMessage(
   roomId: string,
   msg: { senderUid: string; senderNick: string; text: string }
