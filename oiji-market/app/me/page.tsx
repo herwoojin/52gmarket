@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { updateNickForUser } from "@/lib/sheets";
 import { LOCATIONS } from "@/types";
-import { LogOut, MapPin, Shield, Building2, User } from "lucide-react";
+import { LogOut, MapPin, Shield, Building2, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, signOut, updateProfile } = useAuth();
+  const [saving, setSaving] = useState(false);
 
   if (!user) return null;
 
@@ -18,8 +23,17 @@ export default function MePage() {
     router.replace("/login");
   };
 
-  const handleSave = () => {
-    toast("프로필을 저장했어요 🥒");
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateNickForUser(user.email, user.nick);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast("프로필을 저장했어요 🥒 내 매물의 닉네임도 업데이트됐어요!");
+    } catch {
+      toast.error("저장 중 오류가 발생했어요");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -54,7 +68,10 @@ export default function MePage() {
 
       {/* 닉네임 */}
       <div className="mb-4">
-        <label className="mb-2 block text-[13px] font-bold">닉네임</label>
+        <label className="mb-2 block text-[13px] font-bold">
+          닉네임
+          <span className="ml-2 text-[11px] font-normal text-muted">매물·채팅에서 다른 사람에게 보이는 이름</span>
+        </label>
         <input
           type="text"
           value={user.nick}
@@ -98,9 +115,11 @@ export default function MePage() {
       {/* 프로필 저장 */}
       <button
         onClick={handleSave}
-        className="mb-5 w-full rounded-2xl bg-cuke px-6 py-4 text-[16px] font-extrabold text-skin-0 transition-all active:scale-[0.98]"
+        disabled={saving}
+        className="mb-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-cuke px-6 py-4 text-[16px] font-extrabold text-skin-0 transition-all active:scale-[0.98] disabled:opacity-60"
       >
-        프로필 저장
+        {saving ? <Loader2 size={18} className="animate-spin" /> : null}
+        {saving ? "저장 중..." : "프로필 저장"}
       </button>
 
       {/* 로그아웃 */}

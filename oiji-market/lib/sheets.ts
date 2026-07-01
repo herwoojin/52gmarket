@@ -79,3 +79,9 @@ export async function removeProduct(id: string): Promise<{ ok: boolean }> {
   }
   return post({ action: "delete", id });
 }
+
+/** 내 매물 전체의 nick을 새 닉네임으로 일괄 업데이트 */
+export async function updateNickForUser(uid: string, nick: string): Promise<void> {
+  if (isDemoMode) return;
+  await post({ action: "updateNick", uid, nick });
+}

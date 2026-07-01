@@ -440,6 +440,10 @@ function doPost(e) {
         }));
         result = json_({ ok: true });
         break;
+      case 'updateNick':
+        updateNickForUser_(body.uid, body.nick);
+        result = json_({ ok: true });
+        break;
       default:
         return json_({ ok: false, error: 'unknown action' });
     }
@@ -491,6 +495,23 @@ function verifyOtp_(email, code) {
 
   cache.remove('otp_' + email.toLowerCase());
   return json_({ ok: true, email: email.toLowerCase() });
+}
+
+/* uid에 해당하는 모든 매물의 nick을 일괄 업데이트 */
+function updateNickForUser_(uid, nick) {
+  if (!uid || !nick) return;
+  const sh = getSheet_();
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return;
+  const head = data[0];
+  const uidCol = head.indexOf('uid');
+  const nickCol = head.indexOf('nick');
+  if (uidCol < 0 || nickCol < 0) return;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][uidCol]) === uid) {
+      sh.getRange(i + 1, nickCol + 1).setValue(nick);
+    }
+  }
 }
 
 function createItem_(item) {

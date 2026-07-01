@@ -76,16 +76,21 @@ export default function ProductCard({
 
         {/* 우상단 버튼: 내 매물이면 편집, 아니면 찜 */}
         {isOwner ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditClick?.(product);
-            }}
-            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-cuke/60 bg-cuke/80 text-skin-0 shadow backdrop-blur-sm transition-all hover:bg-cuke"
-            title="내 매물 수정"
-          >
-            <Pencil size={14} />
-          </button>
+          <div className="absolute right-2 top-2 group/edittip">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditClick?.(product);
+              }}
+              className="flex items-center gap-1 rounded-xl border border-cuke bg-cuke/90 px-2.5 py-1.5 text-[11px] font-bold text-skin-0 shadow-md backdrop-blur-sm transition-all hover:bg-cuke active:scale-95"
+            >
+              <Pencil size={11} />
+              수정
+            </button>
+            <div className="pointer-events-none absolute right-0 top-full mt-1.5 z-30 hidden rounded-lg bg-neutral-900/90 px-2.5 py-1.5 text-[11px] text-white whitespace-nowrap shadow-lg group-hover/edittip:block">
+              클릭하면 내용·사진을 수정할 수 있어요
+            </div>
+          </div>
         ) : (
           <button
             onClick={(e) => {
@@ -130,7 +135,14 @@ export default function ProductCard({
             </span>
           </div>
           {isOwner && (
-            <span className="text-[10px] font-bold text-cuke/70">내 매물 ✏️</span>
+            <div className="group/ownertip relative">
+              <span className="inline-flex items-center rounded-full border border-cuke/30 bg-cuke/10 px-2 py-0.5 text-[10px] font-bold text-cuke/80">
+                내 매물
+              </span>
+              <div className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 hidden rounded-lg bg-neutral-900/90 px-2.5 py-1.5 text-[11px] text-white whitespace-nowrap shadow-lg group-hover/ownertip:block">
+                내가 등록한 매물 — 우상단 수정 버튼으로 편집
+              </div>
+            </div>
           )}
         </div>
       </div>

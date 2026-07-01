@@ -7,7 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import ProductDetailSheet from "@/components/ProductDetailSheet";
 import ChatSheet from "@/components/ChatSheet";
 import type { Product } from "@/types";
-import { CATEGORIES, DEALS } from "@/types";
+import { CATEGORIES, DEALS, LOCATIONS } from "@/types";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 
@@ -22,6 +22,7 @@ export default function HomePage() {
 
   const [catFilter, setCatFilter] = useState<string>("전체");
   const [dealFilter, setDealFilter] = useState<string>("전체");
+  const [locFilter, setLocFilter] = useState<string>("전체");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [openInEditMode, setOpenInEditMode] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
@@ -67,8 +68,9 @@ export default function HomePage() {
       .filter((p) => p.status !== "삭제")
       .filter((p) => catFilter === "전체" || p.category === catFilter)
       .filter((p) => dealFilter === "전체" || p.deal === dealFilter)
+      .filter((p) => locFilter === "전체" || p.loc === locFilter)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [products, catFilter, dealFilter]);
+  }, [products, catFilter, dealFilter, locFilter]);
 
   const handleUpdate = async (id: string, patch: Partial<(typeof products)[0]>) => {
     await updateProduct(id, patch);
@@ -127,8 +129,8 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* 거래방식 필터 */}
-      <div className="mb-4 flex gap-2">
+      {/* 거래방식 + 위치 필터 (같은 줄) */}
+      <div className="mb-3 flex items-center gap-2">
         {DEALS.map((deal) => (
           <button
             key={deal}
@@ -142,6 +144,22 @@ export default function HomePage() {
             {deal}
           </button>
         ))}
+        <div className="ml-auto">
+          <select
+            value={locFilter}
+            onChange={(e) => setLocFilter(e.target.value)}
+            className={`appearance-none rounded-full border px-3.5 py-2 text-[13px] font-semibold outline-none transition-all ${
+              locFilter !== "전체"
+                ? "border-cuke bg-cuke text-skin-0"
+                : "border-skin-line bg-skin-1 text-muted"
+            }`}
+          >
+            <option value="전체">📍 전체 위치</option>
+            {LOCATIONS.map((loc) => (
+              <option key={loc} value={loc}>{loc}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 로딩 */}
