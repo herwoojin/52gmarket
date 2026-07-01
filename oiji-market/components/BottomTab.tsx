@@ -2,19 +2,17 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, MessageCircle, Plus, Bell, User, Trophy } from "lucide-react";
+import { Home, MessageCircle, Bell, User, Trophy } from "lucide-react";
 
 interface TabItem {
   href: string;
   label: string;
   icon: typeof Home;
-  fab?: boolean;
 }
 
 const tabs: TabItem[] = [
   { href: "/", label: "홈", icon: Home },
   { href: "/chats", label: "채팅", icon: MessageCircle },
-  { href: "/upload", label: "올리기", icon: Plus, fab: true },
   { href: "/ranking", label: "랭킹", icon: Trophy },
   { href: "/noti", label: "알림", icon: Bell },
   { href: "/me", label: "내정보", icon: User },
@@ -37,23 +35,6 @@ export default function BottomTab({ notiBadge = 0, chatBadge = 0 }: BottomTabPro
         {tabs.map((tab) => {
           const active = pathname === tab.href;
           const Icon = tab.icon;
-
-          if (tab.fab) {
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className="relative -mt-5 flex flex-col items-center"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cuke shadow-lg shadow-cuke/30 transition-transform active:scale-95">
-                  <Icon size={26} className="text-skin-0" strokeWidth={2.5} />
-                </div>
-                <span className="mt-1 text-[10px] font-bold text-cuke">
-                  {tab.label}
-                </span>
-              </Link>
-            );
-          }
 
           return (
             <Link

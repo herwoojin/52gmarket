@@ -140,15 +140,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-skin-0 px-6">
       <div className="w-full max-w-sm">
-        {/* 로고 */}
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-cuke/10 text-5xl">
-            🥒
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">
-            오이<span className="text-cuke-bright">(52)</span>지마켓
-          </h1>
-          <p className="mt-2 text-[13px] text-muted">사내 전산소모품·사무용품 나눔/재판매</p>
+        {/* 배너 이미지 */}
+        <div className="mb-8 overflow-hidden rounded-3xl shadow-xl shadow-black/20">
+          <img
+            src="/banner-login.png"
+            alt="오이(52)지마켓"
+            className="w-full object-cover"
+            draggable={false}
+          />
         </div>
 
         {step === "email" ? (

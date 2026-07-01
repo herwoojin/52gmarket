@@ -191,8 +191,14 @@ export default function HomePage() {
 
       {/* 로딩 */}
       {isLoading && (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cuke border-t-transparent" />
+        <div className="animate-pulse overflow-hidden rounded-2xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/banner-home.png"
+            alt="오이(52)지마켓 로딩 중"
+            className="w-full object-cover opacity-80"
+            draggable={false}
+          />
         </div>
       )}
 
