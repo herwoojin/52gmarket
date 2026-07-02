@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import AppShell from "@/components/AppShell";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import OneSignalInit from "@/components/OneSignalInit";
 
 export const metadata: Metadata = {
   title: "오이(52)지마켓",
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="flex min-h-dvh flex-col bg-skin-0 text-ink">
         <Providers>
           <ServiceWorkerRegister />
+          <OneSignalInit />
           <AppShell>{children}</AppShell>
         </Providers>
       </body>

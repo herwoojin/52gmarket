@@ -15,8 +15,23 @@
  *    FB_PRIVATE_KEY   : 서비스 계정 private_key (\n 포함 통째로)
  *  ============================================================ */
 
-const SHEET_NAME = '매물';
-const HEADERS = ['id','createdAt','status','deal','category','title','price','desc','loc','nick','uid','photoURL','jjim','chats'];
+const SHEET_NAME = "매물";
+const HEADERS = [
+  "id",
+  "createdAt",
+  "status",
+  "deal",
+  "category",
+  "title",
+  "price",
+  "desc",
+  "loc",
+  "nick",
+  "uid",
+  "photoURL",
+  "jjim",
+  "chats",
+];
 
 /* ---------- 시트 준비 ---------- */
 function getSheet_() {
@@ -25,7 +40,10 @@ function getSheet_() {
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
     sh.appendRow(HEADERS);
-    sh.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold').setBackground('#0e1813').setFontColor('#73d98a');
+    sh.getRange(1, 1, 1, HEADERS.length)
+      .setFontWeight("bold")
+      .setBackground("#0e1813")
+      .setFontColor("#73d98a");
     sh.setFrozenRows(1);
   }
   return sh;
@@ -37,29 +55,33 @@ function getSheet_() {
  *  ========================================================= */
 function uploadToDrive_(base64, filename, mimeType) {
   const bytes = Utilities.base64Decode(base64);
-  const blob = Utilities.newBlob(bytes, mimeType || 'image/webp', filename || ('photo_' + Date.now() + '.webp'));
+  const blob = Utilities.newBlob(
+    bytes,
+    mimeType || "image/webp",
+    filename || "photo_" + Date.now() + ".webp",
+  );
 
   // '오이지마켓-사진' 폴더 찾거나 생성
   let folder;
-  const folders = DriveApp.getFoldersByName('오이지마켓-사진');
+  const folders = DriveApp.getFoldersByName("오이지마켓-사진");
   if (folders.hasNext()) {
     folder = folders.next();
   } else {
-    folder = DriveApp.createFolder('오이지마켓-사진');
+    folder = DriveApp.createFolder("오이지마켓-사진");
   }
 
   const file = folder.createFile(blob);
   // ANYONE: 로그인 없이도 <img> 태그에서 직접 로드 가능
   // ANYONE_WITH_LINK는 인증 쿠키가 없으면 Google 로그인 페이지로 리다이렉트됨
   file.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
-  return 'https://drive.google.com/uc?export=view&id=' + file.getId();
+  return "https://drive.google.com/uc?export=view&id=" + file.getId();
 }
 
 /* =========================================================
  *  🖼️ 시트 L열 이미지 하이퍼링크 + O열 미리보기 업데이트
  *  ========================================================= */
 function setPhotoPreview_(sh, row, url) {
-  if (!url || !String(url).startsWith('http')) return;
+  if (!url || !String(url).startsWith("http")) return;
   // L열(photoURL)은 건드리지 않음 — appendRow/setValue 가 이미 올바른 URL을 기록했음
   // L열에 하이퍼링크를 쓰면 getValues()가 "이미지 보기" 텍스트를 반환해 URL이 사라지는 버그 방지
   sh.getRange(row, 15).setFormula('=IMAGE("' + url + '",4,80,80)');
@@ -74,10 +96,13 @@ function initPermissions() {
   try {
     // DriveApp 호출 → 미승인 상태라면 여기서 권한 팝업 발생
     DriveApp.getRootFolder();
-    SpreadsheetApp.getActiveSpreadsheet()
-      .toast('Google Drive 권한이 정상 승인됐어요!', '🔑 권한 확인', 4);
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      "Google Drive 권한이 정상 승인됐어요!",
+      "🔑 권한 확인",
+      4,
+    );
   } catch (err) {
-    SpreadsheetApp.getUi().alert('Drive 권한 오류: ' + err);
+    SpreadsheetApp.getUi().alert("Drive 권한 오류: " + err);
   }
 }
 
@@ -88,10 +113,10 @@ function initPermissions() {
  *  ========================================================= */
 function repairPhotoURLs() {
   const sh = getSheet_();
-  const photoColNum = HEADERS.indexOf('photoURL') + 1;
+  const photoColNum = HEADERS.indexOf("photoURL") + 1;
   const lastRow = sh.getLastRow();
   if (lastRow < 2) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('데이터가 없어요.', '복구', 3);
+    SpreadsheetApp.getActiveSpreadsheet().toast("데이터가 없어요.", "복구", 3);
     return;
   }
 
@@ -101,13 +126,13 @@ function repairPhotoURLs() {
 
   let fixed = 0;
   for (let i = 0; i < values.length; i++) {
-    const cellVal = String(values[i][0] || '');
-    if (cellVal.startsWith('http')) continue; // 이미 올바른 URL
+    const cellVal = String(values[i][0] || "");
+    if (cellVal.startsWith("http")) continue; // 이미 올바른 URL
     const rt = richTexts[i][0];
     if (!rt) continue;
     for (const run of rt.getRuns()) {
       const link = run.getLinkUrl();
-      if (link && link.startsWith('http')) {
+      if (link && link.startsWith("http")) {
         photoRange.getCell(i + 1, 1).setValue(link);
         fixed++;
         break;
@@ -116,7 +141,9 @@ function repairPhotoURLs() {
   }
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    fixed + '개 photoURL 복구 완료! (blob: URL은 재업로드 필요)', '🖼️ 복구', 5
+    fixed + "개 photoURL 복구 완료! (blob: URL은 재업로드 필요)",
+    "🖼️ 복구",
+    5,
   );
 }
 
@@ -128,18 +155,18 @@ function rebuildPhotoPreviews() {
   const sh = getSheet_();
   const last = sh.getLastRow();
   if (last < 2) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('데이터가 없어요.', '🖼️', 3);
+    SpreadsheetApp.getActiveSpreadsheet().toast("데이터가 없어요.", "🖼️", 3);
     return;
   }
 
-  const photoColIdx = HEADERS.indexOf('photoURL'); // 0-based = 11
+  const photoColIdx = HEADERS.indexOf("photoURL"); // 0-based = 11
   const data = sh.getRange(2, photoColIdx + 1, last - 1, 1).getValues();
   let count = 0;
 
   data.forEach((r, i) => {
-    const url = String(r[0] || '');
+    const url = String(r[0] || "");
     const row = i + 2;
-    if (url.startsWith('http')) {
+    if (url.startsWith("http")) {
       setPhotoPreview_(sh, row, url);
       count++;
     } else {
@@ -148,8 +175,11 @@ function rebuildPhotoPreviews() {
     }
   });
 
-  SpreadsheetApp.getActiveSpreadsheet()
-    .toast(count + '개 행 미리보기를 업데이트했어요. (blob: URL은 재업로드 필요)', '🖼️ 완료', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    count + "개 행 미리보기를 업데이트했어요. (blob: URL은 재업로드 필요)",
+    "🖼️ 완료",
+    5,
+  );
 }
 
 /* 시트 전체 구조·서식·데이터 유효성 초기화 (메뉴에서 실행) */
@@ -163,17 +193,28 @@ function setupSheet_() {
   /* ── 헤더 행 ── */
   sh.getRange(1, 1, 1, HEADERS.length)
     .setValues([HEADERS])
-    .setFontWeight('bold')
-    .setBackground('#0e1813')
-    .setFontColor('#73d98a')
+    .setFontWeight("bold")
+    .setBackground("#0e1813")
+    .setFontColor("#73d98a")
     .setFontSize(11);
   sh.setFrozenRows(1);
 
   /* ── 열 너비 ── */
   const colWidths = {
-    id:1, createdAt:2, status:3, deal:4, category:5,
-    title:6, price:7, desc:8, loc:9, nick:10, uid:11,
-    photoURL:12, jjim:13, chats:14
+    id: 1,
+    createdAt: 2,
+    status: 3,
+    deal: 4,
+    category: 5,
+    title: 6,
+    price: 7,
+    desc: 8,
+    loc: 9,
+    nick: 10,
+    uid: 11,
+    photoURL: 12,
+    jjim: 13,
+    chats: 14,
   };
   sh.setColumnWidth(colWidths.id, 140);
   sh.setColumnWidth(colWidths.createdAt, 160);
@@ -192,8 +233,11 @@ function setupSheet_() {
 
   // O열: 사진 미리보기 (앱 데이터 아님 — 시트 전용 시각화)
   sh.getRange(1, 15)
-    .setValue('📷 미리보기')
-    .setFontWeight('bold').setBackground('#0e1813').setFontColor('#73d98a').setFontSize(11);
+    .setValue("📷 미리보기")
+    .setFontWeight("bold")
+    .setBackground("#0e1813")
+    .setFontColor("#73d98a")
+    .setFontSize(11);
   sh.setColumnWidth(15, 130);
 
   /* ── 데이터 유효성 (드롭다운) — 2행~1000행 ── */
@@ -201,31 +245,42 @@ function setupSheet_() {
 
   // status 드롭다운
   const statusRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['판매중', '거래완료', '삭제'], true)
+    .requireValueInList(["판매중", "거래완료", "삭제"], true)
     .setAllowInvalid(false)
     .build();
   sh.getRange(2, 3, maxRow, 1).setDataValidation(statusRule);
 
   // deal 드롭다운
   const dealRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['나눔', '판매'], true)
+    .requireValueInList(["나눔", "판매"], true)
     .setAllowInvalid(false)
     .build();
   sh.getRange(2, 4, maxRow, 1).setDataValidation(dealRule);
 
   // category 드롭다운
   const catRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['전산소모품', '사무용품', '가구·비품', '기타'], true)
+    .requireValueInList(["전산소모품", "사무용품", "가구·비품", "기타"], true)
     .setAllowInvalid(false)
     .build();
   sh.getRange(2, 5, maxRow, 1).setDataValidation(catRule);
 
   // loc 드롭다운
   const locRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList([
-      '본사 1층','본사 2층','본사 3층','본사 4층','본사 5층',
-      '별관 A동','별관 B동','분당 사무소','판교 사무소','기타'
-    ], true)
+    .requireValueInList(
+      [
+        "본사 1층",
+        "본사 2층",
+        "본사 3층",
+        "본사 4층",
+        "본사 5층",
+        "별관 A동",
+        "별관 B동",
+        "분당 사무소",
+        "판교 사무소",
+        "기타",
+      ],
+      true,
+    )
     .setAllowInvalid(true) // 직접 입력도 허용
     .build();
   sh.getRange(2, 9, maxRow, 1).setDataValidation(locRule);
@@ -234,29 +289,33 @@ function setupSheet_() {
   const rules = [];
 
   const soldRule = SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo('거래완료')
-    .setBackground('#1a3a2a')
-    .setFontColor('#52c06e')
-    .setRanges([sh.getRange('A2:N1000')])
+    .whenTextEqualTo("거래완료")
+    .setBackground("#1a3a2a")
+    .setFontColor("#52c06e")
+    .setRanges([sh.getRange("A2:N1000")])
     .build();
   rules.push(soldRule);
 
   const delRule = SpreadsheetApp.newConditionalFormatRule()
-    .whenTextEqualTo('삭제')
-    .setBackground('#2a1a1a')
-    .setFontColor('#666')
-    .setRanges([sh.getRange('A2:N1000')])
+    .whenTextEqualTo("삭제")
+    .setBackground("#2a1a1a")
+    .setFontColor("#666")
+    .setRanges([sh.getRange("A2:N1000")])
     .build();
   rules.push(delRule);
 
   sh.setConditionalFormatRules(rules);
 
   /* ── 타임스탬프 초기화 ── */
-  PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
+  PropertiesService.getScriptProperties().setProperty(
+    "LAST_MODIFIED",
+    String(Date.now()),
+  );
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    '매물 시트 구성 완료! (드롭다운·서식·조건부서식 적용됨)',
-    '🥒 시트 설정', 5
+    "매물 시트 구성 완료! (드롭다운·서식·조건부서식 적용됨)",
+    "🥒 시트 설정",
+    5,
   );
 }
 
@@ -267,30 +326,37 @@ function rowsToObjects_() {
 
   const values = dataRange.getValues();
   const head = values[0];
-  const photoCol = head.indexOf('photoURL'); // 0-based
+  const photoCol = head.indexOf("photoURL"); // 0-based
 
   // RichText 전체 가져오기 (photoURL 셀이 "이미지 보기" 하이퍼링크일 때 실제 URL 복원용)
   let richTexts = null;
-  try { richTexts = dataRange.getRichTextValues(); } catch(_) {}
+  try {
+    richTexts = dataRange.getRichTextValues();
+  } catch (_) {}
 
   return values.slice(1).map((r, i) => {
     const o = {};
-    head.forEach((h, c) => { o[h] = r[c]; });
+    head.forEach((h, c) => {
+      o[h] = r[c];
+    });
     o._row = i + 2;
 
     // photoURL 값이 "이미지 보기" 또는 빈값이면 RichText 링크에서 실제 URL 추출
     if (photoCol >= 0 && richTexts) {
-      const cellVal = String(r[photoCol] || '');
-      if (!cellVal.startsWith('http')) {
+      const cellVal = String(r[photoCol] || "");
+      if (!cellVal.startsWith("http")) {
         try {
           const rt = richTexts[i + 1][photoCol];
           if (rt) {
             for (const run of rt.getRuns()) {
               const link = run.getLinkUrl();
-              if (link && link.startsWith('http')) { o.photoURL = link; break; }
+              if (link && link.startsWith("http")) {
+                o.photoURL = link;
+                break;
+              }
             }
           }
-        } catch(_) {}
+        } catch (_) {}
       }
     }
     return o;
@@ -303,7 +369,10 @@ function rowsToObjects_() {
 
 /* 시트가 편집될 때마다 호출됨 (installable trigger) */
 function onSheetEdit_(e) {
-  PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
+  PropertiesService.getScriptProperties().setProperty(
+    "LAST_MODIFIED",
+    String(Date.now()),
+  );
 
   if (!e || !e.range) return;
   const sh = e.range.getSheet();
@@ -314,9 +383,9 @@ function onSheetEdit_(e) {
   if (row < 2) return;
 
   /* L열(photoURL) 직접 편집 시 → O열 미리보기 자동 갱신 */
-  const photoCol = HEADERS.indexOf('photoURL') + 1;
+  const photoCol = HEADERS.indexOf("photoURL") + 1;
   if (col === photoCol) {
-    const url = String(e.range.getValue() || '');
+    const url = String(e.range.getValue() || "");
     setPhotoPreview_(sh, row, url);
   }
 }
@@ -325,17 +394,18 @@ function onSheetEdit_(e) {
 function initOnEditTrigger() {
   // 기존 동일 핸들러 트리거 제거 (중복 방지)
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'onSheetEdit_')
-    .forEach(t => ScriptApp.deleteTrigger(t));
+    .filter((t) => t.getHandlerFunction() === "onSheetEdit_")
+    .forEach((t) => ScriptApp.deleteTrigger(t));
 
-  ScriptApp.newTrigger('onSheetEdit_')
+  ScriptApp.newTrigger("onSheetEdit_")
     .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
     .onEdit()
     .create();
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    '실시간 동기화 트리거 등록 완료! 이제 시트 편집 시 앱이 자동으로 갱신돼요.',
-    '🥒 트리거', 5
+    "실시간 동기화 트리거 등록 완료! 이제 시트 편집 시 앱이 자동으로 갱신돼요.",
+    "🥒 트리거",
+    5,
   );
 }
 
@@ -344,121 +414,169 @@ function initOnEditTrigger() {
  *     ?action=ping  → lastModified 타임스탬프만 반환 (경량 폴링용)
  *  ========================================================= */
 function doGet(e) {
-  const params = (e && e.parameter) ? e.parameter : {};
+  const params = e && e.parameter ? e.parameter : {};
 
   /* ── ping: 변경 시각만 반환 ── */
-  if (params.action === 'ping') {
-    const ts = Number(getProp_('LAST_MODIFIED') || 0);
+  if (params.action === "ping") {
+    const ts = Number(getProp_("LAST_MODIFIED") || 0);
     return json_({ ok: true, lastModified: ts });
   }
 
   /* ── 채팅 메시지 조회 ── */
-  if (params.action === 'chat') {
+  if (params.action === "chat") {
     return getChatMessages_(params.roomId);
   }
 
   /* ── 판매자 채팅 목록 ── */
-  if (params.action === 'sellerChats' && params.uid) {
+  if (params.action === "sellerChats" && params.uid) {
     return getSellerChats_(params.uid);
   }
 
   /* ── 판매자 계좌 정보 조회 ── */
-  if (params.action === 'bankInfo' && params.uid) {
-    var bankKey = 'BANK_' + String(params.uid);
+  if (params.action === "bankInfo" && params.uid) {
+    var bankKey = "BANK_" + String(params.uid);
     var bankRaw = getProp_(bankKey);
     return json_({ ok: true, info: bankRaw ? JSON.parse(bankRaw) : null });
   }
 
   /* ── 랭킹 ── */
-  if (params.action === 'ranking') {
+  if (params.action === "ranking") {
     return getRankingData_();
   }
 
+  /* ── 키워드 알림 목록 (계정 기준) ── */
+  if (params.action === 'getKeywords' && params.uid) {
+    try {
+      var kwSh = ensureKeywordsSheet_();
+      var kwData = kwSh.getDataRange().getValues();
+      var kws = kwData.slice(1)
+        .filter(function(r) { return String(r[0]) === String(params.uid); })
+        .map(function(r) { return String(r[1]); });
+      return json_({ ok: true, keywords: kws });
+    } catch(e) { return json_({ ok: false, error: String(e), keywords: [] }); }
+  }
+
   /* ── 채팅 읽음 상태 (기기 무관, 계정 기준) ── */
-  if (params.action === 'chatReads' && params.uid) {
+  if (params.action === "chatReads" && params.uid) {
     try {
       var crSh = ensureChatReadsSheet_();
       var crData = crSh.getDataRange().getValues();
       var reads = {};
-      crData.slice(1).forEach(function(r) {
+      crData.slice(1).forEach(function (r) {
         if (String(r[0]) === String(params.uid)) {
           reads[String(r[1])] = Number(r[2]) || 0;
         }
       });
       return json_({ ok: true, reads: reads });
-    } catch(e) { return json_({ ok: false, error: String(e), reads: {} }); }
+    } catch (e) {
+      return json_({ ok: false, error: String(e), reads: {} });
+    }
   }
 
   /* ── 내 포인트 이력 ── */
-  if (params.action === 'myPoints' && params.uid) {
+  if (params.action === "myPoints" && params.uid) {
     try {
       var ps = ensurePointsSheet_();
       var pd = ps.getDataRange().getValues();
-      var recs = pd.slice(1)
-        .filter(function(r) { return String(r[1]) === String(params.uid); })
-        .map(function(r) {
-          return { id: r[0], uid: r[1], nick: r[2], type: r[3], productId: r[4],
-                   points: Number(r[5]), note: r[6], createdAt: r[7],
-                   year: Number(r[8]), month: Number(r[9]) };
+      var recs = pd
+        .slice(1)
+        .filter(function (r) {
+          return String(r[1]) === String(params.uid);
+        })
+        .map(function (r) {
+          return {
+            id: r[0],
+            uid: r[1],
+            nick: r[2],
+            type: r[3],
+            productId: r[4],
+            points: Number(r[5]),
+            note: r[6],
+            createdAt: r[7],
+            year: Number(r[8]),
+            month: Number(r[9]),
+          };
         });
       return json_({ ok: true, records: recs });
-    } catch(e) { return json_({ ok: false, error: String(e) }); }
+    } catch (e) {
+      return json_({ ok: false, error: String(e) });
+    }
   }
 
   /* ── 기간별 포인트 랭킹 ── */
-  if (params.action === 'pointsRanking') {
+  if (params.action === "pointsRanking") {
     try {
-      var period = params.period || 'month';
+      var period = params.period || "month";
       var now2 = new Date();
-      var cy = now2.getFullYear(), cm = now2.getMonth() + 1;
+      var cy = now2.getFullYear(),
+        cm = now2.getMonth() + 1;
       var ps2 = ensurePointsSheet_();
       var pd2 = ps2.getDataRange().getValues();
       var map2 = {};
-      pd2.slice(1).forEach(function(r) {
-        var yr = Number(r[8]), mo = Number(r[9]);
-        if (period === 'month' && (yr !== cy || mo !== cm)) return;
-        if (period === 'year' && yr !== cy) return;
-        var uid = String(r[1]), nick = String(r[2]), tp = String(r[3]);
-        if (!map2[uid]) map2[uid] = { uid: uid, nick: nick, total: 0, nanum: 0, sale: 0, points: 0 };
+      pd2.slice(1).forEach(function (r) {
+        var yr = Number(r[8]),
+          mo = Number(r[9]);
+        if (period === "month" && (yr !== cy || mo !== cm)) return;
+        if (period === "year" && yr !== cy) return;
+        var uid = String(r[1]),
+          nick = String(r[2]),
+          tp = String(r[3]);
+        if (!map2[uid])
+          map2[uid] = {
+            uid: uid,
+            nick: nick,
+            total: 0,
+            nanum: 0,
+            sale: 0,
+            points: 0,
+          };
         map2[uid].total++;
         map2[uid].points += Number(r[5]);
-        if (tp === 'nanum') map2[uid].nanum++;
-        if (tp === 'sale') map2[uid].sale++;
+        if (tp === "nanum") map2[uid].nanum++;
+        if (tp === "sale") map2[uid].sale++;
       });
-      var prk = Object.values(map2).sort(function(a, b) { return b.points - a.points; });
+      var prk = Object.values(map2).sort(function (a, b) {
+        return b.points - a.points;
+      });
       return json_({ ok: true, ranking: prk });
-    } catch(e) { return json_({ ok: false, error: String(e), ranking: [] }); }
+    } catch (e) {
+      return json_({ ok: false, error: String(e), ranking: [] });
+    }
   }
 
   /* ── 이미지 프록시: Drive 파일 → base64 (CORS/CORP 완전 우회) ── */
-  if (params.action === 'img' && params.id) {
+  if (params.action === "img" && params.id) {
     try {
       const file = DriveApp.getFileById(params.id);
       const blob = file.getBlob();
-      return json_({ ok: true, b64: Utilities.base64Encode(blob.getBytes()), mime: blob.getContentType() });
-    } catch(err) {
+      return json_({
+        ok: true,
+        b64: Utilities.base64Encode(blob.getBytes()),
+        mime: blob.getContentType(),
+      });
+    } catch (err) {
       return json_({ ok: false, error: String(err) });
     }
   }
 
   /* ── 매물 목록 전체 반환 ── */
   const items = rowsToObjects_()
-    .filter(o => o.id && o.status !== '삭제')
-    .map(o => ({
+    .filter((o) => o.id && o.status !== "삭제")
+    .map((o) => ({
       id: String(o.id),
-      uid: String(o.uid || ''),      // ← 프론트에서 본인 매물 판별에 필수
-      deal: o.deal || '나눔',
-      category: o.category || '기타',
-      title: o.title || '',
+      uid: String(o.uid || ""), // ← 프론트에서 본인 매물 판별에 필수
+      deal: o.deal || "나눔",
+      category: o.category || "기타",
+      title: o.title || "",
       price: Number(o.price) || 0,
-      desc: o.desc || '',
-      loc: o.loc || '',
-      nick: o.nick || '익명',
-      photoURL: o.photoURL || '',
-      status: o.status || '판매중',
+      desc: o.desc || "",
+      loc: o.loc || "",
+      nick: o.nick || "익명",
+      photoURL: o.photoURL || "",
+      status: o.status || "판매중",
       jjim: Number(o.jjim) || 0,
       chats: Number(o.chats) || 0,
-      createdAt: o.createdAt ? new Date(o.createdAt).getTime() : 0
+      createdAt: o.createdAt ? new Date(o.createdAt).getTime() : 0,
     }))
     .sort((a, b) => b.createdAt - a.createdAt);
   return json_({ ok: true, items });
@@ -470,103 +588,127 @@ function doGet(e) {
  *  ========================================================= */
 function doPost(e) {
   try {
-    const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    const body = JSON.parse((e && e.postData && e.postData.contents) || "{}");
 
     /* ── 토큰 없이 허용 ── */
-    if (body.action === 'sendOtp')    return sendOtp_(body.email);
-    if (body.action === 'verifyOtp')  return verifyOtp_(body.email, body.code);
-    if (body.action === 'sendChat')   return sendChatMessage_(body.roomId, body.message);
-    if (body.action === 'uploadPhoto') {
+    if (body.action === "sendOtp") return sendOtp_(body.email);
+    if (body.action === "verifyOtp") return verifyOtp_(body.email, body.code);
+    if (body.action === "sendChat")
+      return sendChatMessage_(body.roomId, body.message);
+    if (body.action === "uploadPhoto") {
       const url = uploadToDrive_(body.base64, body.filename, body.mimeType);
       return json_({ ok: true, url });
     }
 
     /* API_TOKEN 이 설정된 경우에만 검증 — 미설정 시 개방 */
-    const savedToken = getProp_('API_TOKEN');
-    if (savedToken && body.token !== savedToken) return json_({ ok: false, error: 'unauthorized' });
+    const savedToken = getProp_("API_TOKEN");
+    if (savedToken && body.token !== savedToken)
+      return json_({ ok: false, error: "unauthorized" });
 
     let result;
     switch (body.action) {
-      case 'create':
+      case "create":
         result = json_({ ok: true, id: createItem_(body.item) });
         break;
-      case 'update':
+      case "update":
         updateItem_(body.id, body.patch || {});
         result = json_({ ok: true });
         break;
-      case 'delete':
+      case "delete":
         deleteItem_(body.id);
         result = json_({ ok: true });
         break;
-      case 'setNanumi':
-        setProp_('MONTHLY_NANUMI', JSON.stringify({
-          uid: body.uid,
-          nick: body.nick,
-          month: body.month,
-          reason: body.reason || '',
-          setAt: new Date().toISOString()
-        }));
+      case "setNanumi":
+        setProp_(
+          "MONTHLY_NANUMI",
+          JSON.stringify({
+            uid: body.uid,
+            nick: body.nick,
+            month: body.month,
+            reason: body.reason || "",
+            setAt: new Date().toISOString(),
+          }),
+        );
         result = json_({ ok: true });
         break;
-      case 'updateNick':
+      case "updateNick":
         updateNickForUser_(body.uid, body.nick);
         result = json_({ ok: true });
         break;
-      case 'setBankInfo':
-        if (!body.uid || !body.info) return json_({ ok: false, error: 'invalid' });
-        setProp_('BANK_' + String(body.uid), JSON.stringify({
-          bankName: body.info.bankName || '',
-          accountNumber: body.info.accountNumber || '',
-          holderName: body.info.holderName || ''
-        }));
+      case "setBankInfo":
+        if (!body.uid || !body.info)
+          return json_({ ok: false, error: "invalid" });
+        setProp_(
+          "BANK_" + String(body.uid),
+          JSON.stringify({
+            bankName: body.info.bankName || "",
+            accountNumber: body.info.accountNumber || "",
+            holderName: body.info.holderName || "",
+          }),
+        );
         result = json_({ ok: true });
         break;
-      case 'notifyPayment':
+      case "notifyPayment":
         // 구매자가 입금완료 통보 → 상태를 '입금대기'로 변경
-        updateItem_(body.id, { status: '입금대기' });
+        updateItem_(body.id, { status: "입금대기" });
         result = json_({ ok: true });
         break;
-      case 'confirmDeposit':
+      case "confirmDeposit":
         // 판매자가 입금 확인 → 거래완료 + 포인트 적립
         addPointRecord_(body.id);
-        updateItem_(body.id, { status: '거래완료' });
+        updateItem_(body.id, { status: "거래완료" });
         result = json_({ ok: true });
         break;
-      case 'confirmDeal':
+      case "confirmDeal":
         // 구매자가 나눔 거래완료 확인 → 판매자 포인트 적립
         addPointRecord_(body.id);
-        updateItem_(body.id, { status: '거래완료' });
+        updateItem_(body.id, { status: "거래완료" });
         result = json_({ ok: true });
         break;
-      case 'markChatRead':
-        if (!body.uid || !body.roomId) return json_({ ok: false, error: 'invalid' });
+      case "markChatRead":
+        if (!body.uid || !body.roomId)
+          return json_({ ok: false, error: "invalid" });
         setChatRead_(body.uid, body.roomId);
         result = json_({ ok: true });
         break;
-      case 'stripeIntent':
-        var stripeKey = getProp_('STRIPE_SECRET_KEY');
-        if (!stripeKey) return json_({ ok: false, error: 'not_configured' });
+      case "setKeywords":
+        if (!body.uid) return json_({ ok: false, error: "invalid" });
+        setKeywordsForUid_(body.uid, body.keywords || []);
+        result = json_({ ok: true });
+        break;
+      case "stripeIntent":
+        var stripeKey = getProp_("STRIPE_SECRET_KEY");
+        if (!stripeKey) return json_({ ok: false, error: "not_configured" });
         try {
-          var stripeResp = UrlFetchApp.fetch('https://api.stripe.com/v1/payment_intents', {
-            method: 'post',
-            headers: { 'Authorization': 'Bearer ' + stripeKey },
-            payload: 'amount=' + String(Math.max(1, Number(body.amount))) +
-                     '&currency=krw&automatic_payment_methods[enabled]=true',
-            muteHttpExceptions: true
-          });
+          var stripeResp = UrlFetchApp.fetch(
+            "https://api.stripe.com/v1/payment_intents",
+            {
+              method: "post",
+              headers: { Authorization: "Bearer " + stripeKey },
+              payload:
+                "amount=" +
+                String(Math.max(1, Number(body.amount))) +
+                "&currency=krw&automatic_payment_methods[enabled]=true",
+              muteHttpExceptions: true,
+            },
+          );
           var stripeData = JSON.parse(stripeResp.getContentText());
-          if (stripeData.error) return json_({ ok: false, error: stripeData.error.message });
+          if (stripeData.error)
+            return json_({ ok: false, error: stripeData.error.message });
           result = json_({ ok: true, clientSecret: stripeData.client_secret });
-        } catch(e) {
+        } catch (e) {
           return json_({ ok: false, error: String(e) });
         }
         break;
       default:
-        return json_({ ok: false, error: 'unknown action' });
+        return json_({ ok: false, error: "unknown action" });
     }
 
     /* POST 로 변경된 경우도 타임스탬프 갱신 */
-    PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
+    PropertiesService.getScriptProperties().setProperty(
+      "LAST_MODIFIED",
+      String(Date.now()),
+    );
     return result;
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -578,14 +720,17 @@ function doPost(e) {
  *  ========================================================= */
 function sendOtp_(email) {
   if (!email || !/@gsretail\.com$/i.test(email)) {
-    return json_({ ok: false, error: '@gsretail.com 이메일만 사용할 수 있어요' });
+    return json_({
+      ok: false,
+      error: "@gsretail.com 이메일만 사용할 수 있어요",
+    });
   }
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const cache = CacheService.getScriptCache();
-  cache.put('otp_' + email.toLowerCase(), code, 300);
+  cache.put("otp_" + email.toLowerCase(), code, 300);
 
-  GmailApp.sendEmail(email, '[오이(52)지마켓] 로그인 인증번호', '', {
-    name: '오이(52)지마켓',
+  GmailApp.sendEmail(email, "[오이(52)지마켓] 로그인 인증번호", "", {
+    name: "오이(52)지마켓",
     noReply: true,
     htmlBody:
       '<div style="font-family:Pretendard,sans-serif;max-width:420px;margin:0 auto;padding:32px;' +
@@ -595,24 +740,32 @@ function sendOtp_(email) {
       '<p style="font-size:15px;line-height:1.6">안녕하세요! 로그인 인증번호입니다.</p>' +
       '<div style="margin:24px 0;padding:20px;background:#14241b;border-radius:14px;' +
       'text-align:center;border:1px solid #22382b">' +
-      '<span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#52c06e">' + code + '</span>' +
-      '</div>' +
+      '<span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#52c06e">' +
+      code +
+      "</span>" +
+      "</div>" +
       '<p style="font-size:13px;color:#8ba596">이 코드는 <b style="color:#e9f2e8">5분간</b> 유효합니다.<br>' +
-      '본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>' +
-      '</div>'
+      "본인이 요청하지 않았다면 이 메일을 무시해주세요.</p>" +
+      "</div>",
   });
 
-  return json_({ ok: true, message: '인증번호를 발송했어요' });
+  return json_({ ok: true, message: "인증번호를 발송했어요" });
 }
 
 function verifyOtp_(email, code) {
-  if (!email || !code) return json_({ ok: false, error: '이메일과 인증번호를 입력해주세요' });
+  if (!email || !code)
+    return json_({ ok: false, error: "이메일과 인증번호를 입력해주세요" });
   const cache = CacheService.getScriptCache();
-  const stored = cache.get('otp_' + email.toLowerCase());
-  if (!stored) return json_({ ok: false, error: '인증번호가 만료되었어요. 다시 요청해주세요' });
-  if (stored !== String(code).trim()) return json_({ ok: false, error: '인증번호가 일치하지 않아요' });
+  const stored = cache.get("otp_" + email.toLowerCase());
+  if (!stored)
+    return json_({
+      ok: false,
+      error: "인증번호가 만료되었어요. 다시 요청해주세요",
+    });
+  if (stored !== String(code).trim())
+    return json_({ ok: false, error: "인증번호가 일치하지 않아요" });
 
-  cache.remove('otp_' + email.toLowerCase());
+  cache.remove("otp_" + email.toLowerCase());
   return json_({ ok: true, email: email.toLowerCase() });
 }
 
@@ -623,8 +776,8 @@ function updateNickForUser_(uid, nick) {
   const data = sh.getDataRange().getValues();
   if (data.length < 2) return;
   const head = data[0];
-  const uidCol = head.indexOf('uid');
-  const nickCol = head.indexOf('nick');
+  const uidCol = head.indexOf("uid");
+  const nickCol = head.indexOf("nick");
   if (uidCol < 0 || nickCol < 0) return;
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][uidCol]) === uid) {
@@ -635,21 +788,22 @@ function updateNickForUser_(uid, nick) {
 
 function createItem_(item) {
   const sh = getSheet_();
-  const id = item.id || ('p' + Date.now());
-  const row = HEADERS.map(h => {
-    if (h === 'id') return id;
-    if (h === 'createdAt') return new Date();
-    if (h === 'status') return item.status || '판매중';
-    if (h === 'jjim' || h === 'chats') return item[h] || 0;
-    return item[h] !== undefined ? item[h] : '';
+  const id = item.id || "p" + Date.now();
+  const row = HEADERS.map((h) => {
+    if (h === "id") return id;
+    if (h === "createdAt") return new Date();
+    if (h === "status") return item.status || "판매중";
+    if (h === "jjim" || h === "chats") return item[h] || 0;
+    return item[h] !== undefined ? item[h] : "";
   });
   sh.appendRow(row);
 
   // 사진 URL이 있으면 L열 하이퍼링크 + O열 미리보기 자동 설정
   const newRow = sh.getLastRow();
-  if (item.photoURL && String(item.photoURL).startsWith('http')) {
+  if (item.photoURL && String(item.photoURL).startsWith("http")) {
     setPhotoPreview_(sh, newRow, item.photoURL);
   }
+  notifyKeywordMatches_(Object.assign({}, item, { id: id }));
   return id;
 }
 
@@ -658,20 +812,21 @@ function findRow_(id) {
   const last = sh.getLastRow();
   if (last < 2) return -1;
   const ids = sh.getRange(2, 1, last - 1, 1).getValues();
-  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) return i + 2;
+  for (let i = 0; i < ids.length; i++)
+    if (String(ids[i][0]) === String(id)) return i + 2;
   return -1;
 }
 
 function updateItem_(id, patch) {
   const sh = getSheet_();
   const row = findRow_(id);
-  if (row < 0) throw 'not found: ' + id;
-  Object.keys(patch).forEach(k => {
+  if (row < 0) throw "not found: " + id;
+  Object.keys(patch).forEach((k) => {
     const c = HEADERS.indexOf(k);
     if (c >= 0) sh.getRange(row, c + 1).setValue(patch[k]);
   });
   // photoURL 변경 시 미리보기 자동 업데이트
-  if (patch.photoURL && String(patch.photoURL).startsWith('http')) {
+  if (patch.photoURL && String(patch.photoURL).startsWith("http")) {
     setPhotoPreview_(sh, row, patch.photoURL);
   }
 }
@@ -680,7 +835,7 @@ function deleteItem_(id) {
   const sh = getSheet_();
   const row = findRow_(id);
   if (row < 0) return;
-  sh.getRange(row, HEADERS.indexOf('status') + 1).setValue('삭제');
+  sh.getRange(row, HEADERS.indexOf("status") + 1).setValue("삭제");
 }
 
 /* =========================================================
@@ -688,47 +843,51 @@ function deleteItem_(id) {
  *  ========================================================= */
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('🥒 오이지마켓')
-    .addItem('매물 등록·편집 패널 열기', 'openSidebar')
-    .addItem('선택한 행에 사진 등록', 'openPhotoForSelected')
+    .createMenu("🥒 오이지마켓")
+    .addItem("매물 등록·편집 패널 열기", "openSidebar")
+    .addItem("선택한 행에 사진 등록", "openPhotoForSelected")
     .addSeparator()
-    .addItem('거래완료로 표시', 'markSelectedSold')
-    .addItem('선택한 행 삭제 처리', 'markSelectedDeleted')
+    .addItem("거래완료로 표시", "markSelectedSold")
+    .addItem("선택한 행 삭제 처리", "markSelectedDeleted")
     .addSeparator()
-    .addItem('📋 시트 구조 초기화 (서식·드롭다운 적용)', 'setupSheet_')
-    .addItem('⚡ 실시간 동기화 트리거 등록', 'initOnEditTrigger')
+    .addItem("📋 시트 구조 초기화 (서식·드롭다운 적용)", "setupSheet_")
+    .addItem("⚡ 실시간 동기화 트리거 등록", "initOnEditTrigger")
     .addSeparator()
-    .addItem('🔑 Google Drive 권한 초기화 (최초 1회)', 'initPermissions')
-    .addItem('🛠️ photoURL 복구 (이미지 보기 → 실제 URL)', 'repairPhotoURLs')
-    .addItem('🖼️ 전체 행 사진 미리보기 재생성', 'rebuildPhotoPreviews')
+    .addItem("🔑 Google Drive 권한 초기화 (최초 1회)", "initPermissions")
+    .addItem("🛠️ photoURL 복구 (이미지 보기 → 실제 URL)", "repairPhotoURLs")
+    .addItem("🖼️ 전체 행 사진 미리보기 재생성", "rebuildPhotoPreviews")
     .addToUi();
 }
 
 function openSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile('Sidebar')
-    .setTitle('🥒 매물 등록·편집');
+  const html =
+    HtmlService.createHtmlOutputFromFile("Sidebar").setTitle(
+      "🥒 매물 등록·편집",
+    );
   SpreadsheetApp.getUi().showSidebar(html);
 }
 
 // google.script.run 은 _ 로 끝나는 함수를 호출할 수 없으므로 public 래퍼 제공
-function getSelectedRow() { return getSelectedRow_(); }
+function getSelectedRow() {
+  return getSelectedRow_();
+}
 
 /* 사이드바 드롭다운용: 전체 매물 목록 반환 */
 function getAllProductsForSidebar() {
   return rowsToObjects_()
-    .filter(o => o.id)
-    .map(o => ({
+    .filter((o) => o.id)
+    .map((o) => ({
       id: String(o.id),
-      title: String(o.title || '(제목 없음)'),
-      status: String(o.status || '판매중'),
-      deal: String(o.deal || '나눔'),
-      category: String(o.category || '기타'),
+      title: String(o.title || "(제목 없음)"),
+      status: String(o.status || "판매중"),
+      deal: String(o.deal || "나눔"),
+      category: String(o.category || "기타"),
       price: Number(o.price) || 0,
-      desc: String(o.desc || ''),
-      loc: String(o.loc || ''),
-      nick: String(o.nick || ''),
-      uid: String(o.uid || ''),
-      photoURL: String(o.photoURL || ''),
+      desc: String(o.desc || ""),
+      loc: String(o.loc || ""),
+      nick: String(o.nick || ""),
+      uid: String(o.uid || ""),
+      photoURL: String(o.photoURL || ""),
     }));
 }
 
@@ -738,7 +897,7 @@ function getSelectedRow_() {
   if (row < 2) return null;
   const vals = sh.getRange(row, 1, 1, HEADERS.length).getValues()[0];
   const o = { _row: row };
-  HEADERS.forEach((h, i) => o[h] = vals[i]);
+  HEADERS.forEach((h, i) => (o[h] = vals[i]));
   return o;
 }
 
@@ -746,12 +905,15 @@ function saveFromSidebar(item) {
   let result;
   if (item.id && findRow_(item.id) >= 0) {
     updateItem_(item.id, item);
-    result = { ok: true, mode: '수정', id: item.id };
+    result = { ok: true, mode: "수정", id: item.id };
   } else {
     const id = createItem_(item);
-    result = { ok: true, mode: '등록', id };
+    result = { ok: true, mode: "등록", id };
   }
-  PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
+  PropertiesService.getScriptProperties().setProperty(
+    "LAST_MODIFIED",
+    String(Date.now()),
+  );
   return result;
 }
 
@@ -763,64 +925,96 @@ function uploadPhotoFromSidebar(base64, filename, mimeType) {
 function openPhotoForSelected() {
   const html = HtmlService.createHtmlOutput(
     '<div style="font-family:sans-serif;padding:14px;font-size:13px">' +
-    '왼쪽 사이드바의 <b>사진 올리기</b> 버튼을 사용하면 선택한 행에 바로 등록됩니다.' +
-    '</div>').setWidth(280).setHeight(120);
-  SpreadsheetApp.getUi().showModalDialog(html, '사진 등록 안내');
+      "왼쪽 사이드바의 <b>사진 올리기</b> 버튼을 사용하면 선택한 행에 바로 등록됩니다." +
+      "</div>",
+  )
+    .setWidth(280)
+    .setHeight(120);
+  SpreadsheetApp.getUi().showModalDialog(html, "사진 등록 안내");
 }
 
 function markSelectedSold() {
-  const o = getSelectedRow_(); if (!o) return;
-  updateItem_(o.id, { status: '거래완료' });
-  PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
-  SpreadsheetApp.getActiveSpreadsheet().toast('거래완료로 표시했어요', '🥒', 3);
+  const o = getSelectedRow_();
+  if (!o) return;
+  updateItem_(o.id, { status: "거래완료" });
+  PropertiesService.getScriptProperties().setProperty(
+    "LAST_MODIFIED",
+    String(Date.now()),
+  );
+  SpreadsheetApp.getActiveSpreadsheet().toast("거래완료로 표시했어요", "🥒", 3);
 }
 function markSelectedDeleted() {
-  const o = getSelectedRow_(); if (!o) return;
+  const o = getSelectedRow_();
+  if (!o) return;
   deleteItem_(o.id);
-  PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
-  SpreadsheetApp.getActiveSpreadsheet().toast('삭제 처리했어요', '🥒', 3);
+  PropertiesService.getScriptProperties().setProperty(
+    "LAST_MODIFIED",
+    String(Date.now()),
+  );
+  SpreadsheetApp.getActiveSpreadsheet().toast("삭제 처리했어요", "🥒", 3);
 }
 
 /* =========================================================
  *  Firebase Storage 업로드 (서비스 계정 REST 방식)
  *  ========================================================= */
 function uploadToFirebase_(base64, filename, mimeType) {
-  const bucket = getProp_('FB_BUCKET');
+  const bucket = getProp_("FB_BUCKET");
   const token = getFirebaseAccessToken_();
   const bytes = Utilities.base64Decode(base64);
-  const objectName = 'listings/' + Date.now() + '_' + filename;
-  const uploadUrl = 'https://firebasestorage.googleapis.com/v0/b/' + bucket +
-    '/o?uploadType=media&name=' + encodeURIComponent(objectName);
+  const objectName = "listings/" + Date.now() + "_" + filename;
+  const uploadUrl =
+    "https://firebasestorage.googleapis.com/v0/b/" +
+    bucket +
+    "/o?uploadType=media&name=" +
+    encodeURIComponent(objectName);
 
   const res = UrlFetchApp.fetch(uploadUrl, {
-    method: 'post',
-    contentType: mimeType || 'image/webp',
+    method: "post",
+    contentType: mimeType || "image/webp",
     payload: bytes,
-    headers: { Authorization: 'Bearer ' + token },
-    muteHttpExceptions: true
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
   });
   const meta = JSON.parse(res.getContentText());
-  if (!meta.downloadTokens) throw '업로드 실패: ' + res.getContentText();
-  return 'https://firebasestorage.googleapis.com/v0/b/' + bucket +
-    '/o/' + encodeURIComponent(objectName) + '?alt=media&token=' + meta.downloadTokens;
+  if (!meta.downloadTokens) throw "업로드 실패: " + res.getContentText();
+  return (
+    "https://firebasestorage.googleapis.com/v0/b/" +
+    bucket +
+    "/o/" +
+    encodeURIComponent(objectName) +
+    "?alt=media&token=" +
+    meta.downloadTokens
+  );
 }
 
 function getFirebaseAccessToken_() {
-  const email = getProp_('FB_CLIENT_EMAIL');
-  const key = getProp_('FB_PRIVATE_KEY').replace(/\\n/g, '\n');
+  const email = getProp_("FB_CLIENT_EMAIL");
+  const key = getProp_("FB_PRIVATE_KEY").replace(/\\n/g, "\n");
   const now = Math.floor(Date.now() / 1000);
-  const header = Utilities.base64EncodeWebSafe(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const claim = Utilities.base64EncodeWebSafe(JSON.stringify({
-    iss: email,
-    scope: 'https://www.googleapis.com/auth/devstorage.read_write',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now, exp: now + 3600
-  }));
-  const signature = Utilities.computeRsaSha256Signature(header + '.' + claim, key);
-  const jwt = header + '.' + claim + '.' + Utilities.base64EncodeWebSafe(signature);
-  const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', {
-    method: 'post',
-    payload: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }
+  const header = Utilities.base64EncodeWebSafe(
+    JSON.stringify({ alg: "RS256", typ: "JWT" }),
+  );
+  const claim = Utilities.base64EncodeWebSafe(
+    JSON.stringify({
+      iss: email,
+      scope: "https://www.googleapis.com/auth/devstorage.read_write",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    }),
+  );
+  const signature = Utilities.computeRsaSha256Signature(
+    header + "." + claim,
+    key,
+  );
+  const jwt =
+    header + "." + claim + "." + Utilities.base64EncodeWebSafe(signature);
+  const res = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    payload: {
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    },
   });
   return JSON.parse(res.getContentText()).access_token;
 }
@@ -829,8 +1023,15 @@ function getFirebaseAccessToken_() {
  *  채팅 — 구글시트 '채팅' 시트에 메시지 저장
  *  roomId = {productId}__{sorted(uid1, uid2)}
  *  ========================================================= */
-const CHAT_SHEET = '채팅';
-const CHAT_HEADERS = ['roomId', 'msgId', 'senderUid', 'senderNick', 'text', 'createdAt'];
+const CHAT_SHEET = "채팅";
+const CHAT_HEADERS = [
+  "roomId",
+  "msgId",
+  "senderUid",
+  "senderNick",
+  "text",
+  "createdAt",
+];
 
 function getChatSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -839,7 +1040,9 @@ function getChatSheet_() {
     sh = ss.insertSheet(CHAT_SHEET);
     sh.appendRow(CHAT_HEADERS);
     sh.getRange(1, 1, 1, CHAT_HEADERS.length)
-      .setFontWeight('bold').setBackground('#0e1813').setFontColor('#73d98a');
+      .setFontWeight("bold")
+      .setBackground("#0e1813")
+      .setFontColor("#73d98a");
     sh.setFrozenRows(1);
     sh.setColumnWidth(1, 240); // roomId
     sh.setColumnWidth(2, 160); // msgId
@@ -852,23 +1055,23 @@ function getChatSheet_() {
 }
 
 function getChatMessages_(roomId) {
-  if (!roomId) return json_({ ok: false, error: 'roomId required' });
+  if (!roomId) return json_({ ok: false, error: "roomId required" });
   const sh = getChatSheet_();
   const data = sh.getDataRange().getValues();
   const head = data.shift();
-  const ridIdx = head.indexOf('roomId');
+  const ridIdx = head.indexOf("roomId");
 
   const messages = data
-    .filter(r => String(r[ridIdx]) === String(roomId))
-    .map(r => {
+    .filter((r) => String(r[ridIdx]) === String(roomId))
+    .map((r) => {
       const o = {};
-      head.forEach((h, i) => o[h] = r[i]);
+      head.forEach((h, i) => (o[h] = r[i]));
       return {
         id: String(o.msgId),
         senderUid: String(o.senderUid),
         senderNick: String(o.senderNick),
         text: String(o.text),
-        createdAt: o.createdAt ? new Date(o.createdAt).getTime() : 0
+        createdAt: o.createdAt ? new Date(o.createdAt).getTime() : 0,
       };
     })
     .sort((a, b) => a.createdAt - b.createdAt);
@@ -880,32 +1083,36 @@ function getSellerChats_(sellerUid) {
   var sh = getSheet_();
   var data = sh.getDataRange().getValues();
   var head = data[0];
-  var uidCol = head.indexOf('uid');
-  var idCol = head.indexOf('id');
-  var titleCol = head.indexOf('title');
-  var statusCol = head.indexOf('status');
+  var uidCol = head.indexOf("uid");
+  var idCol = head.indexOf("id");
+  var titleCol = head.indexOf("title");
+  var statusCol = head.indexOf("status");
 
   var myProducts = {};
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][uidCol]) === sellerUid && String(data[i][statusCol]) !== '삭제') {
-      myProducts[String(data[i][idCol])] = String(data[i][titleCol] || '');
+    if (
+      String(data[i][uidCol]) === sellerUid &&
+      String(data[i][statusCol]) !== "삭제"
+    ) {
+      myProducts[String(data[i][idCol])] = String(data[i][titleCol] || "");
     }
   }
-  if (Object.keys(myProducts).length === 0) return json_({ ok: true, rooms: [] });
+  if (Object.keys(myProducts).length === 0)
+    return json_({ ok: true, rooms: [] });
 
   var chatSh = getChatSheet_();
   var chatData = chatSh.getDataRange().getValues();
   var chatHead = chatData.shift();
-  var ridIdx = chatHead.indexOf('roomId');
-  var senderUidIdx = chatHead.indexOf('senderUid');
-  var senderNickIdx = chatHead.indexOf('senderNick');
-  var textIdx = chatHead.indexOf('text');
-  var createdAtIdx = chatHead.indexOf('createdAt');
+  var ridIdx = chatHead.indexOf("roomId");
+  var senderUidIdx = chatHead.indexOf("senderUid");
+  var senderNickIdx = chatHead.indexOf("senderNick");
+  var textIdx = chatHead.indexOf("text");
+  var createdAtIdx = chatHead.indexOf("createdAt");
 
   var roomMap = {};
-  chatData.forEach(function(r) {
+  chatData.forEach(function (r) {
     var roomId = String(r[ridIdx]);
-    var parts = roomId.split('__');
+    var parts = roomId.split("__");
     if (parts.length < 3) return;
     var productId = parts[0];
     if (!myProducts[productId]) return;
@@ -920,49 +1127,56 @@ function getSellerChats_(sellerUid) {
         productId: productId,
         productTitle: myProducts[productId],
         buyerUid: buyerUid,
-        buyerNick: '',
-        lastMsg: '',
+        buyerNick: "",
+        lastMsg: "",
         lastAt: 0,
-        msgCount: 0
+        msgCount: 0,
       };
     }
     roomMap[roomId].msgCount++;
     if (createdAt > roomMap[roomId].lastAt) {
       roomMap[roomId].lastAt = createdAt;
-      roomMap[roomId].lastMsg = String(r[textIdx] || '');
+      roomMap[roomId].lastMsg = String(r[textIdx] || "");
       if (String(r[senderUidIdx]) !== sellerUid) {
-        roomMap[roomId].buyerNick = String(r[senderNickIdx] || '');
+        roomMap[roomId].buyerNick = String(r[senderNickIdx] || "");
       }
     }
   });
 
-  var rooms = Object.values(roomMap).sort(function(a, b) { return b.lastAt - a.lastAt; });
+  var rooms = Object.values(roomMap).sort(function (a, b) {
+    return b.lastAt - a.lastAt;
+  });
   return json_({ ok: true, rooms: rooms });
 }
 
 function sendChatMessage_(roomId, msg) {
   if (!roomId || !msg || !msg.text || !msg.text.trim()) {
-    return json_({ ok: false, error: 'invalid' });
+    return json_({ ok: false, error: "invalid" });
   }
   const sh = getChatSheet_();
-  const msgId = 'msg-' + Date.now();
+  const msgId = "msg-" + Date.now();
   sh.appendRow([
     roomId,
     msgId,
-    msg.senderUid || '',
-    msg.senderNick || '익명',
+    msg.senderUid || "",
+    msg.senderNick || "익명",
     msg.text.trim(),
-    new Date()
+    new Date(),
   ]);
   // 채팅도 lastModified 갱신
-  PropertiesService.getScriptProperties().setProperty('LAST_MODIFIED', String(Date.now()));
+  PropertiesService.getScriptProperties().setProperty(
+    "LAST_MODIFIED",
+    String(Date.now()),
+  );
+  notifyChatRecipient_(roomId, msg);
   return json_({ ok: true, id: msgId });
 }
 
 /* ---------- 공통 ---------- */
 function json_(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }
 function getProp_(k) {
   return PropertiesService.getScriptProperties().getProperty(k);
@@ -971,37 +1185,119 @@ function setProp_(k, v) {
   PropertiesService.getScriptProperties().setProperty(k, v);
 }
 
-/* ─── 채팅 읽음 상태 시트 (계정 기준 — 기기 무관 동기화) ──────── */
-function ensureChatReadsSheet_() {
+/* ─── OneSignal 푸시 발송 ──────────────────────────────────── */
+function sendOneSignalPush_(uids, title, body, url) {
+  try {
+    var appId = getProp_('ONESIGNAL_APP_ID');
+    var apiKey = getProp_('ONESIGNAL_REST_API_KEY');
+    if (!appId || !apiKey || !uids || uids.length === 0) return;
+    UrlFetchApp.fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Basic ' + apiKey },
+      payload: JSON.stringify({
+        app_id: appId,
+        include_aliases: { external_id: uids },
+        target_channel: 'push',
+        headings: { en: title },
+        contents: { en: body },
+        url: url || '/'
+      }),
+      muteHttpExceptions: true
+    });
+  } catch (e) { /* 푸시 실패해도 본 기능(등록/채팅)은 계속 진행 */ }
+}
+
+/* ─── 키워드 알림 시트 ────────────────────────────────────── */
+function ensureKeywordsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('채팅읽음');
+  var sh = ss.getSheetByName('키워드알림');
   if (!sh) {
-    sh = ss.insertSheet('채팅읽음');
-    sh.appendRow(['uid', 'roomId', 'lastReadAt']);
+    sh = ss.insertSheet('키워드알림');
+    sh.appendRow(['uid', 'keyword', 'createdAt']);
   }
   return sh;
 }
 
-function setChatRead_(uid, roomId) {
-  var sh = ensureChatReadsSheet_();
+function setKeywordsForUid_(uid, keywords) {
+  var sh = ensureKeywordsSheet_();
   var data = sh.getDataRange().getValues();
-  var now = Date.now();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(uid) && String(data[i][1]) === String(roomId)) {
-      sh.getRange(i + 1, 3).setValue(now);
-      return;
-    }
+  // 기존 uid 행 삭제 (뒤에서부터 지워야 인덱스가 안 밀림)
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]) === String(uid)) sh.deleteRow(i + 1);
   }
-  sh.appendRow([String(uid), String(roomId), now]);
+  var now = new Date();
+  keywords.forEach(function(kw) {
+    var w = String(kw).trim();
+    if (w) sh.appendRow([String(uid), w, now]);
+  });
+}
+
+/* 새 매물 등록 시 키워드 매칭 유저에게 푸시 */
+function notifyKeywordMatches_(item) {
+  try {
+    var sh = ensureKeywordsSheet_();
+    var data = sh.getDataRange().getValues();
+    var text = (String(item.title || '') + ' ' + String(item.desc || '') + ' ' + String(item.category || '')).toLowerCase();
+    var ownerUid = String(item.uid || '');
+    var matched = {};
+    for (var i = 1; i < data.length; i++) {
+      var uid = String(data[i][0]);
+      var kw = String(data[i][1] || '').toLowerCase().trim();
+      if (!kw || uid === ownerUid) continue;
+      if (text.indexOf(kw) >= 0) matched[uid] = true;
+    }
+    var uids = Object.keys(matched);
+    if (uids.length === 0) return;
+    sendOneSignalPush_(uids, '🔔 관심 키워드 매물이 올라왔어요', String(item.title || ''), '/');
+  } catch (e) { /* 무시 */ }
+}
+
+/* 채팅 메시지 발송 시 상대방에게 푸시 */
+function notifyChatRecipient_(roomId, msg) {
+  try {
+    var parts = String(roomId).split('__');
+    if (parts.length < 3) return;
+    var productId = parts[0];
+    var senderUid = String(msg.senderUid || '');
+    var recipientUid = parts[1] === senderUid ? parts[2] : parts[1];
+    if (!recipientUid || recipientUid === senderUid || recipientUid === 'undefined') return;
+
+    var isSellerRecipient = false;
+    var rows = rowsToObjects_();
+    for (var i = 0; i < rows.length; i++) {
+      if (String(rows[i].id) === productId) {
+        isSellerRecipient = String(rows[i].uid) === recipientUid;
+        break;
+      }
+    }
+    sendOneSignalPush_(
+      [recipientUid],
+      '💬 ' + (msg.senderNick || '누군가') + '님의 새 메시지',
+      String(msg.text || '').trim(),
+      isSellerRecipient ? '/chats' : '/'
+    );
+  } catch (e) { /* 무시 */ }
 }
 
 /* ─── 포인트 이력 시트 ────────────────────────────────────── */
 function ensurePointsSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('포인트이력');
+  var sh = ss.getSheetByName("포인트이력");
   if (!sh) {
-    sh = ss.insertSheet('포인트이력');
-    sh.appendRow(['id','uid','nick','type','productId','points','note','createdAt','year','month']);
+    sh = ss.insertSheet("포인트이력");
+    sh.appendRow([
+      "id",
+      "uid",
+      "nick",
+      "type",
+      "productId",
+      "points",
+      "note",
+      "createdAt",
+      "year",
+      "month",
+    ]);
   }
   return sh;
 }
@@ -1017,42 +1313,54 @@ function addPointRecord_(productId) {
     var rows = rowsToObjects_();
     var p = null;
     for (var j = 0; j < rows.length; j++) {
-      if (String(rows[j].id) === String(productId)) { p = rows[j]; break; }
+      if (String(rows[j].id) === String(productId)) {
+        p = rows[j];
+        break;
+      }
     }
     if (!p) return;
-    var tp = p.deal === '나눔' ? 'nanum' : 'sale';
-    var pts = p.deal === '나눔' ? 3 : 2;
+    var tp = p.deal === "나눔" ? "nanum" : "sale";
+    var pts = p.deal === "나눔" ? 3 : 2;
     var now = new Date();
     sh.appendRow([
-      Utilities.getUuid(), String(p.uid || ''), String(p.nick || '익명'),
-      tp, String(productId), pts, '거래완료 확인',
-      now.toISOString(), now.getFullYear(), now.getMonth() + 1
+      Utilities.getUuid(),
+      String(p.uid || ""),
+      String(p.nick || "익명"),
+      tp,
+      String(productId),
+      pts,
+      "거래완료 확인",
+      now.toISOString(),
+      now.getFullYear(),
+      now.getMonth() + 1,
     ]);
-  } catch(e) { /* 포인트 적립 실패해도 거래완료는 진행 */ }
+  } catch (e) {
+    /* 포인트 적립 실패해도 거래완료는 진행 */
+  }
 }
 
 /* ─── 랭킹 집계 ─────────────────────────────────────────── */
 function getRankingData_() {
   const all = rowsToObjects_();
-  const active = all.filter(o => o.id && o.status !== '삭제');
+  const active = all.filter((o) => o.id && o.status !== "삭제");
 
   const map = {};
-  active.forEach(o => {
-    const uid = String(o.uid || '').trim();
-    const nick = String(o.nick || '익명').trim();
+  active.forEach((o) => {
+    const uid = String(o.uid || "").trim();
+    const nick = String(o.nick || "익명").trim();
     if (!uid) return;
     if (!map[uid]) map[uid] = { uid, nick, total: 0, nanum: 0, sale: 0 };
     map[uid].total++;
-    if (o.deal === '나눔') map[uid].nanum++;
-    if (o.deal === '판매') map[uid].sale++;
+    if (o.deal === "나눔") map[uid].nanum++;
+    if (o.deal === "판매") map[uid].sale++;
   });
 
   // 포인트: 나눔 1건 = 3점, 판매 1건 = 2점
   const ranking = Object.values(map)
-    .map(s => ({ ...s, points: s.nanum * 3 + s.sale * 2 }))
+    .map((s) => ({ ...s, points: s.nanum * 3 + s.sale * 2 }))
     .sort((a, b) => b.points - a.points);
 
-  const raw = getProp_('MONTHLY_NANUMI');
+  const raw = getProp_("MONTHLY_NANUMI");
   const monthlyNanumi = raw ? JSON.parse(raw) : null;
 
   return json_({ ok: true, ranking, monthlyNanumi });

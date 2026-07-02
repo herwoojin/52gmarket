@@ -2,23 +2,38 @@
 
 import { useState, useEffect } from "react";
 import { useNotifications } from "@/lib/notifications";
+import { useAuth } from "@/lib/auth";
+import { fetchKeywords, saveKeywords as saveKeywordsRemote } from "@/lib/keywords";
+import { requestPushPermission, isPushEnabled, isPushConfigured } from "@/lib/push";
 import { Bell, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 export default function NotiPage() {
   const { notifications, markAllRead } = useNotifications();
+  const { user } = useAuth();
   const [keywords, setKeywords] = useState<string[]>([]);
   const [kwInput, setKwInput] = useState("");
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [checkingPush, setCheckingPush] = useState(true);
 
-  // localStorage에서 키워드 복원
+  // 서버(계정 기준)에서 키워드 복원 — 어떤 기기서든 동일하게 보임
   useEffect(() => {
-    const stored = localStorage.getItem("oiji-keywords");
-    if (stored) setKeywords(JSON.parse(stored));
+    if (!user?.email) return;
+    fetchKeywords(user.email).then((kws) => {
+      if (kws.length > 0) setKeywords(kws);
+    });
+  }, [user?.email]);
+
+  useEffect(() => {
+    isPushEnabled().then((v) => {
+      setPushEnabled(v);
+      setCheckingPush(false);
+    });
   }, []);
 
   const saveKeywords = (kws: string[]) => {
     setKeywords(kws);
-    localStorage.setItem("oiji-keywords", JSON.stringify(kws));
+    if (user?.email) saveKeywordsRemote(user.email, kws);
   };
 
   const addKeyword = () => {
@@ -40,18 +55,16 @@ export default function NotiPage() {
   };
 
   const enablePush = async () => {
-    if (!("Notification" in window)) {
-      toast("이 브라우저는 알림을 지원하지 않아요");
+    if (!isPushConfigured) {
+      toast.error("푸시 알림이 아직 설정되지 않았어요");
       return;
     }
-    const perm = await Notification.requestPermission();
-    if (perm === "granted") {
-      toast("🔔 푸시 알림이 켜졌어요!");
-      new window.Notification("오이지마켓", {
-        body: "이제 찾는 물건이 올라오면 바로 알려드릴게요!",
-      });
+    const granted = await requestPushPermission();
+    if (granted) {
+      setPushEnabled(true);
+      toast("🔔 푸시 알림이 켜졌어요! 새 매물·채팅이 오면 알려드려요.");
     } else {
-      toast("알림 권한이 거부되었어요");
+      toast.error("알림 권한이 거부됐어요. 브라우저 설정에서 허용해주세요.");
     }
   };
 
@@ -113,10 +126,20 @@ export default function NotiPage() {
       {/* 푸시 알림 */}
       <button
         onClick={enablePush}
-        className="mb-5 w-full rounded-2xl border border-skin-line bg-skin-1 px-4 py-3.5 text-[14px] font-bold text-ink transition-colors hover:border-cuke"
+        disabled={pushEnabled || checkingPush}
+        className={`mb-5 w-full rounded-2xl border px-4 py-3.5 text-[14px] font-bold transition-colors disabled:cursor-default ${
+          pushEnabled
+            ? "border-cuke bg-cuke/10 text-cuke"
+            : "border-skin-line bg-skin-1 text-ink hover:border-cuke"
+        }`}
       >
-        🔔 푸시 알림 켜기
+        {checkingPush ? "확인 중..." : pushEnabled ? "✅ 푸시 알림 켜짐" : "🔔 푸시 알림 켜기"}
       </button>
+      {!isPushConfigured && (
+        <p className="-mt-3 mb-5 text-[11px] text-muted">
+          아직 관리자가 푸시 알림을 설정하지 않았어요
+        </p>
+      )}
 
       {/* 알림 목록 */}
       <div className="flex items-center gap-2 text-[13px] font-bold text-muted">

@@ -1,3 +1,6 @@
+// OneSignal 푸시 수신·클릭 처리를 이 커스텀 SW에 병합
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+
 const CACHE_NAME = 'oiji-market-v1';
 const SHELL_URLS = [
   '/',
