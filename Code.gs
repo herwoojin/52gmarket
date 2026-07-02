@@ -374,6 +374,21 @@ function doGet(e) {
     return getRankingData_();
   }
 
+  /* ── 채팅 읽음 상태 (기기 무관, 계정 기준) ── */
+  if (params.action === 'chatReads' && params.uid) {
+    try {
+      var crSh = ensureChatReadsSheet_();
+      var crData = crSh.getDataRange().getValues();
+      var reads = {};
+      crData.slice(1).forEach(function(r) {
+        if (String(r[0]) === String(params.uid)) {
+          reads[String(r[1])] = Number(r[2]) || 0;
+        }
+      });
+      return json_({ ok: true, reads: reads });
+    } catch(e) { return json_({ ok: false, error: String(e), reads: {} }); }
+  }
+
   /* ── 내 포인트 이력 ── */
   if (params.action === 'myPoints' && params.uid) {
     try {
@@ -521,6 +536,11 @@ function doPost(e) {
         // 구매자가 나눔 거래완료 확인 → 판매자 포인트 적립
         addPointRecord_(body.id);
         updateItem_(body.id, { status: '거래완료' });
+        result = json_({ ok: true });
+        break;
+      case 'markChatRead':
+        if (!body.uid || !body.roomId) return json_({ ok: false, error: 'invalid' });
+        setChatRead_(body.uid, body.roomId);
         result = json_({ ok: true });
         break;
       case 'stripeIntent':
@@ -949,6 +969,30 @@ function getProp_(k) {
 }
 function setProp_(k, v) {
   PropertiesService.getScriptProperties().setProperty(k, v);
+}
+
+/* ─── 채팅 읽음 상태 시트 (계정 기준 — 기기 무관 동기화) ──────── */
+function ensureChatReadsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('채팅읽음');
+  if (!sh) {
+    sh = ss.insertSheet('채팅읽음');
+    sh.appendRow(['uid', 'roomId', 'lastReadAt']);
+  }
+  return sh;
+}
+
+function setChatRead_(uid, roomId) {
+  var sh = ensureChatReadsSheet_();
+  var data = sh.getDataRange().getValues();
+  var now = Date.now();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(uid) && String(data[i][1]) === String(roomId)) {
+      sh.getRange(i + 1, 3).setValue(now);
+      return;
+    }
+  }
+  sh.appendRow([String(uid), String(roomId), now]);
 }
 
 /* ─── 포인트 이력 시트 ────────────────────────────────────── */

@@ -3,7 +3,7 @@
 import BottomTab from "@/components/BottomTab";
 import { useNotifications } from "@/lib/notifications";
 import { useQuery } from "@tanstack/react-query";
-import { fetchSellerChats, countUnreadRooms } from "@/lib/chat";
+import { fetchSellerChats, fetchChatReads, countUnreadRooms } from "@/lib/chat";
 import { useAuth } from "@/lib/auth";
 
 export default function BottomTabWrapper() {
@@ -18,5 +18,13 @@ export default function BottomTabWrapper() {
     staleTime: 0,
   });
 
-  return <BottomTab notiBadge={unreadCount} chatBadge={countUnreadRooms(sellerRooms)} />;
+  const { data: reads = {} } = useQuery({
+    queryKey: ["chatReads", user?.email],
+    queryFn: () => fetchChatReads(user?.email || ""),
+    enabled: !!user?.email,
+    refetchInterval: 30_000,
+    staleTime: 0,
+  });
+
+  return <BottomTab notiBadge={unreadCount} chatBadge={countUnreadRooms(sellerRooms, reads)} />;
 }

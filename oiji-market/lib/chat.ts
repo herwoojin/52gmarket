@@ -56,18 +56,53 @@ export async function fetchSellerChats(sellerUid: string): Promise<SellerChatRoo
 
 const CHAT_READ_PREFIX = "oiji-chat-read-";
 
+/** 로컬 캐시 — 서버 응답 전 즉시 UI 반영용 (낙관적 업데이트) */
 export function markRoomAsRead(roomId: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(CHAT_READ_PREFIX + roomId, String(Date.now()));
 }
 
-export function getRoomLastRead(roomId: string): number {
+function getLocalLastRead(roomId: string): number {
   if (typeof window === "undefined") return 0;
   return Number(localStorage.getItem(CHAT_READ_PREFIX + roomId) || 0);
 }
 
-export function countUnreadRooms(rooms: SellerChatRoom[]): number {
-  return rooms.filter((r) => r.lastAt > getRoomLastRead(r.roomId)).length;
+/** 계정 기준 서버 읽음 상태 — 로그인한 기기 어디서든 동일하게 반영됨 */
+export async function fetchChatReads(uid: string): Promise<Record<string, number>> {
+  if (isDemoMode || !uid) return {};
+  try {
+    const res = await fetch(
+      `${APPS_SCRIPT_URL}?action=chatReads&uid=${encodeURIComponent(uid)}`,
+      { cache: "no-store" }
+    );
+    const data = await res.json();
+    return (data.reads as Record<string, number>) || {};
+  } catch {
+    return {};
+  }
+}
+
+export async function markRoomReadRemote(uid: string, roomId: string): Promise<void> {
+  markRoomAsRead(roomId); // 즉시 로컬 반영
+  if (isDemoMode || !uid) return;
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "markChatRead", uid, roomId }),
+    });
+  } catch {
+    // 서버 반영 실패해도 로컬 읽음 상태는 유지
+  }
+}
+
+/** 로컬 캐시와 서버 값 중 더 최신 값을 신뢰(기기 간 동기화 지연 대비) */
+export function getRoomLastRead(roomId: string, reads?: Record<string, number>): number {
+  return Math.max(getLocalLastRead(roomId), reads?.[roomId] || 0);
+}
+
+export function countUnreadRooms(rooms: SellerChatRoom[], reads?: Record<string, number>): number {
+  return rooms.filter((r) => r.lastAt > getRoomLastRead(r.roomId, reads)).length;
 }
 
 export async function sendMessage(

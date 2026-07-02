@@ -4,7 +4,8 @@ import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchSellerChats,
-  markRoomAsRead,
+  fetchChatReads,
+  markRoomReadRemote,
   getRoomLastRead,
   type SellerChatRoom,
 } from "@/lib/chat";
@@ -29,6 +30,14 @@ export default function ChatsPage() {
     staleTime: 0,
   });
 
+  const { data: reads = {} } = useQuery({
+    queryKey: ["chatReads", user?.email],
+    queryFn: () => fetchChatReads(user?.email || ""),
+    enabled: !!user?.email,
+    refetchInterval: 10_000,
+    staleTime: 0,
+  });
+
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn: listProducts,
@@ -37,14 +46,16 @@ export default function ChatsPage() {
 
   if (!user) return null;
 
-  const isUnread = (room: SellerChatRoom) => room.lastAt > getRoomLastRead(room.roomId);
+  const isUnread = (room: SellerChatRoom) => room.lastAt > getRoomLastRead(room.roomId, reads);
 
   const openRoom = (room: SellerChatRoom) => {
-    markRoomAsRead(room.roomId);
     setReadTick((t) => t + 1);
     setSelectedRoom(room);
-    // 배지 카운트도 즉시 갱신
-    queryClient.invalidateQueries({ queryKey: ["sellerChats"] });
+    markRoomReadRemote(user?.email || "", room.roomId).then(() => {
+      // 서버 반영 후 배지·목록 즉시 갱신
+      queryClient.invalidateQueries({ queryKey: ["sellerChats"] });
+      queryClient.invalidateQueries({ queryKey: ["chatReads"] });
+    });
   };
 
   const getProduct = (room: SellerChatRoom): Product => {
@@ -54,7 +65,7 @@ export default function ChatsPage() {
       id: room.productId,
       title: room.productTitle,
       uid: user.email || "",
-      nick: room.buyerNick || room.buyerUid.split("@")[0],
+      nick: room.buyerNick || (room.buyerUid && room.buyerUid !== "undefined" ? room.buyerUid.split("@")[0] : "익명"),
       deal: "나눔",
       category: "기타",
       price: 0,
@@ -109,7 +120,7 @@ export default function ChatsPage() {
                         <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-500" />
                       )}
                       <p className={`line-clamp-1 text-[13px] font-bold ${unread ? "text-cuke" : "text-cuke-bright"}`}>
-                        @{room.buyerNick || room.buyerUid.split("@")[0]}
+                        @{room.buyerNick || (room.buyerUid && room.buyerUid !== "undefined" ? room.buyerUid.split("@")[0] : "익명")}
                       </p>
                     </div>
                     <p className={`mt-0.5 line-clamp-1 text-[12px] ${unread ? "font-bold text-ink" : "font-semibold text-ink"}`}>
