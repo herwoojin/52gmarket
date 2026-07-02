@@ -14,11 +14,16 @@ export default function OneSignalInit() {
     if (!isPushConfigured) return;
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async (oneSignal) => {
-      await oneSignal.init({
-        appId: ONESIGNAL_APP_ID,
-        serviceWorkerPath: "/sw.js",
-        serviceWorkerParam: { scope: "/" },
-      });
+      try {
+        await oneSignal.init({
+          appId: ONESIGNAL_APP_ID,
+          serviceWorkerPath: "/sw.js",
+          serviceWorkerParam: { scope: "/" },
+        });
+      } catch (err) {
+        // OneSignal 대시보드에서 Web Push 플랫폼 설정이 안 끝났을 때 등 init 자체가 실패할 수 있음
+        console.error("[OneSignal] init 실패:", err);
+      }
     });
   }, []);
 
