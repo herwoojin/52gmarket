@@ -9,6 +9,7 @@ interface ProductCardProps {
   product: Product;
   isJjimed?: boolean;
   currentUid?: string;
+  variant?: "large" | "small";
   onJjimToggle?: (id: string) => void;
   onClick?: (product: Product) => void;
   onEditClick?: (product: Product) => void;
@@ -18,10 +19,12 @@ export default function ProductCard({
   product,
   isJjimed = false,
   currentUid,
+  variant = "large",
   onJjimToggle,
   onClick,
   onEditClick,
 }: ProductCardProps) {
+  const isSmall = variant === "small";
   const [imgSrc, setImgSrc] = useState("");
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
@@ -109,42 +112,46 @@ export default function ProductCard({
       </div>
 
       {/* 본문 */}
-      <div className="p-2.5 pb-3">
-        <h3 className="line-clamp-2 min-h-[35px] text-[13.5px] font-bold leading-snug tracking-tight">
+      <div className={isSmall ? "p-1.5 pb-2" : "p-2.5 pb-3"}>
+        <h3 className={`font-bold leading-snug tracking-tight ${isSmall ? "line-clamp-1 text-[11px]" : "line-clamp-2 min-h-[35px] text-[13.5px]"}`}>
           {product.title}
         </h3>
 
-        <p className={`mt-1.5 text-[15px] font-extrabold ${isFree ? "text-warn" : "text-ink"}`}>
-          {isFree ? "무료나눔" : `${product.price.toLocaleString()}원`}
+        <p className={`font-extrabold ${isFree ? "text-warn" : "text-ink"} ${isSmall ? "mt-0.5 text-[11px]" : "mt-1.5 text-[15px]"}`}>
+          {isFree ? "무료" : `${product.price.toLocaleString()}원`}
         </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-          <span className="inline-flex items-center gap-1">
-            <MapPin size={11} /> {product.loc}
-          </span>
-          <span className="font-semibold text-cuke-bright">@{product.nick}</span>
-        </div>
-
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex gap-3 text-[11px] text-muted">
-            <span className="inline-flex items-center gap-1">
-              <Heart size={11} /> {product.jjim}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageCircle size={11} /> {product.chats}
-            </span>
-          </div>
-          {isOwner && (
-            <div className="group/ownertip relative">
-              <span className="inline-flex items-center rounded-full border border-cuke/30 bg-cuke/10 px-2 py-0.5 text-[10px] font-bold text-cuke/80">
-                내 매물
+        {!isSmall && (
+          <>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={11} /> {product.loc}
               </span>
-              <div className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 hidden rounded-lg bg-neutral-900/90 px-2.5 py-1.5 text-[11px] text-white whitespace-nowrap shadow-lg group-hover/ownertip:block">
-                내가 등록한 매물 — 우상단 수정 버튼으로 편집
-              </div>
+              <span className="font-semibold text-cuke-bright">@{product.nick}</span>
             </div>
-          )}
-        </div>
+
+            <div className="mt-2 flex items-center justify-between">
+              <div className="flex gap-3 text-[11px] text-muted">
+                <span className="inline-flex items-center gap-1">
+                  <Heart size={11} /> {product.jjim}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <MessageCircle size={11} /> {product.chats}
+                </span>
+              </div>
+              {isOwner && (
+                <div className="group/ownertip relative">
+                  <span className="inline-flex items-center rounded-full border border-cuke/30 bg-cuke/10 px-2 py-0.5 text-[10px] font-bold text-cuke/80">
+                    내 매물
+                  </span>
+                  <div className="pointer-events-none absolute bottom-full right-0 mb-1.5 z-30 hidden rounded-lg bg-neutral-900/90 px-2.5 py-1.5 text-[11px] text-white whitespace-nowrap shadow-lg group-hover/ownertip:block">
+                    내가 등록한 매물 — 우상단 수정 버튼으로 편집
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </article>
   );

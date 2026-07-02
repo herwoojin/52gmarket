@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listProducts, updateProduct, removeProduct, getLastModified } from "@/lib/sheets";
 import ProductCard from "@/components/ProductCard";
+import ProductTableRow from "@/components/ProductTableRow";
 import ProductDetailSheet from "@/components/ProductDetailSheet";
 import ChatSheet from "@/components/ChatSheet";
 import PaymentSheet from "@/components/PaymentSheet";
@@ -11,6 +12,7 @@ import type { Product } from "@/types";
 import { CATEGORIES, DEALS, LOCATIONS } from "@/types";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { LayoutGrid, Grid3X3, Table2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -24,7 +26,13 @@ export default function HomePage() {
   const [catFilter, setCatFilter] = useState<string>("전체");
   const [dealFilter, setDealFilter] = useState<string>("전체");
   const [locFilter, setLocFilter] = useState<string>("전체");
-  const [statusFilter, setStatusFilter] = useState<string>("전체");
+  const [statusFilter, setStatusFilter] = useState<string>("판매중");
+  const [viewMode, setViewMode] = useState<"large" | "small" | "table">(() => {
+    if (typeof window === "undefined") return "large";
+    return (localStorage.getItem("oiji-view") as "large" | "small" | "table") || "large";
+  });
+  const [sortCol, setSortCol] = useState("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [openInEditMode, setOpenInEditMode] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
@@ -76,6 +84,34 @@ export default function HomePage() {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [products, catFilter, dealFilter, locFilter, statusFilter]);
 
+  const sorted = useMemo(() => {
+    if (viewMode !== "table") return filtered;
+    return [...filtered].sort((a, b) => {
+      let va: string | number = "";
+      let vb: string | number = "";
+      if (sortCol === "title")     { va = a.title;     vb = b.title; }
+      else if (sortCol === "price")    { va = a.price;     vb = b.price; }
+      else if (sortCol === "category") { va = a.category;  vb = b.category; }
+      else if (sortCol === "deal")     { va = a.deal;      vb = b.deal; }
+      else if (sortCol === "loc")      { va = a.loc;       vb = b.loc; }
+      else if (sortCol === "status")   { va = a.status;    vb = b.status; }
+      else { va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, viewMode, sortCol, sortDir]);
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir("asc"); }
+  };
+
+  const changeView = (mode: "large" | "small" | "table") => {
+    setViewMode(mode);
+    localStorage.setItem("oiji-view", mode);
+  };
+
   const handleUpdate = async (id: string, patch: Partial<(typeof products)[0]>) => {
     await updateProduct(id, patch);
     queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -114,6 +150,25 @@ export default function HomePage() {
     queryClient.invalidateQueries({ queryKey: ["products"] });
   };
 
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return <ChevronsUpDown size={12} className="ml-1 inline opacity-40" />;
+    return sortDir === "asc"
+      ? <ChevronUp size={12} className="ml-1 inline text-cuke" />
+      : <ChevronDown size={12} className="ml-1 inline text-cuke" />;
+  };
+
+  const TABLE_COLS: { key: string; label: string; sortable: boolean }[] = [
+    { key: "_img",     label: "",       sortable: false },
+    { key: "title",    label: "제목",   sortable: true },
+    { key: "price",    label: "가격",   sortable: true },
+    { key: "category", label: "카테고리", sortable: true },
+    { key: "deal",     label: "거래방식", sortable: true },
+    { key: "loc",      label: "위치",   sortable: true },
+    { key: "status",   label: "상태",   sortable: true },
+    { key: "createdAt",label: "등록일", sortable: true },
+    { key: "_action",  label: "",       sortable: false },
+  ];
+
   return (
     <div className="animate-fade-in px-4 pt-4 pb-2">
       {/* 카테고리 필터 */}
@@ -133,9 +188,8 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* 거래방식 + 판매상태 + 위치 필터 */}
+      {/* 거래방식 + 판매상태 + 위치 필터 + 보기모드 */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {/* 거래방식 */}
         {DEALS.map((deal) => (
           <button
             key={deal}
@@ -150,10 +204,8 @@ export default function HomePage() {
           </button>
         ))}
 
-        {/* 구분선 */}
         <span className="h-5 w-px bg-skin-line" />
 
-        {/* 판매상태 */}
         {(["전체", "판매중", "거래완료"] as const).map((s) => (
           <button
             key={s}
@@ -171,21 +223,42 @@ export default function HomePage() {
         ))}
 
         {/* 위치 드롭다운 */}
-        <div className="ml-auto">
-          <select
-            value={locFilter}
-            onChange={(e) => setLocFilter(e.target.value)}
-            className={`appearance-none rounded-full border px-3.5 py-2 text-[13px] font-semibold outline-none transition-all ${
-              locFilter !== "전체"
-                ? "border-cuke bg-cuke text-skin-0"
-                : "border-skin-line bg-skin-1 text-muted"
-            }`}
-          >
-            <option value="전체">📍 전체 위치</option>
-            {LOCATIONS.map((loc) => (
-              <option key={loc} value={loc}>{loc}</option>
-            ))}
-          </select>
+        <select
+          value={locFilter}
+          onChange={(e) => setLocFilter(e.target.value)}
+          className={`appearance-none rounded-full border px-3.5 py-2 text-[13px] font-semibold outline-none transition-all ${
+            locFilter !== "전체"
+              ? "border-cuke bg-cuke text-skin-0"
+              : "border-skin-line bg-skin-1 text-muted"
+          }`}
+        >
+          <option value="전체">📍 전체 위치</option>
+          {LOCATIONS.map((loc) => (
+            <option key={loc} value={loc}>{loc}</option>
+          ))}
+        </select>
+
+        {/* 보기 모드 토글 */}
+        <div className="ml-auto flex rounded-xl border border-skin-line bg-skin-1 p-0.5">
+          {([
+            { mode: "large", icon: <LayoutGrid size={15} />, label: "크게" },
+            { mode: "small", icon: <Grid3X3 size={15} />,   label: "작게" },
+            { mode: "table", icon: <Table2 size={15} />,    label: "표" },
+          ] as const).map(({ mode, icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => changeView(mode)}
+              title={`${label} 보기`}
+              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-all ${
+                viewMode === mode
+                  ? "bg-cuke text-skin-0 shadow-sm"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              {icon}
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -193,19 +266,14 @@ export default function HomePage() {
       {isLoading && (
         <div className="animate-pulse overflow-hidden rounded-2xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/banner-home.png"
-            alt="오이(52)지마켓 로딩 중"
-            className="w-full object-cover opacity-80"
-            draggable={false}
-          />
+          <img src="/banner-home.png" alt="로딩 중" className="w-full object-cover opacity-80" draggable={false} />
         </div>
       )}
 
-      {/* 매물 그리드 */}
-      {!isLoading && (
+      {/* ── 크게 보기 ── */}
+      {!isLoading && viewMode === "large" && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {filtered.map((product) => (
+          {sorted.map((product) => (
             <ProductCard
               key={product.id}
               product={product}
@@ -219,14 +287,67 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ── 작게 보기 ── */}
+      {!isLoading && viewMode === "small" && (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+          {sorted.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              variant="small"
+              isJjimed={jjimedIds.has(product.id)}
+              currentUid={user?.email || ""}
+              onJjimToggle={handleJjimToggle}
+              onClick={(p) => { setOpenInEditMode(false); setSelectedProduct(p); }}
+              onEditClick={(p) => { setOpenInEditMode(true); setSelectedProduct(p); }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── 표 보기 ── */}
+      {!isLoading && viewMode === "table" && (
+        <div className="overflow-x-auto rounded-xl border border-skin-line">
+          <table className="w-full min-w-[640px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-skin-line bg-skin-1">
+                {TABLE_COLS.map(({ key, label, sortable }) => (
+                  <th
+                    key={key}
+                    onClick={() => sortable && handleSort(key)}
+                    className={`px-3 py-2.5 text-[11px] font-extrabold uppercase tracking-wider text-muted ${
+                      sortable ? "cursor-pointer select-none hover:text-ink" : ""
+                    }`}
+                  >
+                    {label}
+                    {sortable && <SortIcon col={key} />}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((product) => (
+                <ProductTableRow
+                  key={product.id}
+                  product={product}
+                  isJjimed={jjimedIds.has(product.id)}
+                  currentUid={user?.email || ""}
+                  onJjimToggle={handleJjimToggle}
+                  onClick={(p) => { setOpenInEditMode(false); setSelectedProduct(p); }}
+                  onEditClick={(p) => { setOpenInEditMode(true); setSelectedProduct(p); }}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* 빈 상태 */}
-      {!isLoading && filtered.length === 0 && (
+      {!isLoading && sorted.length === 0 && (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
           <span className="text-5xl">🥒</span>
           <p className="text-[15px] font-bold text-muted">매물이 없어요</p>
-          <p className="text-[13px] text-muted">
-            안 쓰는 물건을 올려보세요!
-          </p>
+          <p className="text-[13px] text-muted">안 쓰는 물건을 올려보세요!</p>
         </div>
       )}
 
