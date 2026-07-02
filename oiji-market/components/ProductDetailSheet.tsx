@@ -9,6 +9,7 @@ import { uploadPhoto } from "@/lib/storage";
 import { toWebp } from "@/lib/webp";
 import { loadDriveImg } from "@/lib/driveImage";
 import { confirmDeposit } from "@/lib/payment";
+import { buyerConfirmDeal } from "@/lib/points";
 import { toast } from "sonner";
 
 interface ProductDetailSheetProps {
@@ -163,6 +164,21 @@ export default function ProductDetailSheet({
       await confirmDeposit(product.id);
       await onUpdate?.(product.id, { status: "거래완료" });
       toast("✅ 입금 확인 완료! 거래가 성사됐어요.");
+      onClose();
+    } catch {
+      toast.error("오류가 발생했어요");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBuyerConfirmDeal = async () => {
+    if (!confirm("거래가 완료됐나요? 판매자에게 포인트가 지급됩니다.")) return;
+    setSaving(true);
+    try {
+      await buyerConfirmDeal(product.id);
+      await onUpdate?.(product.id, { status: "거래완료" });
+      toast("🎉 거래완료! 판매자에게 포인트가 지급됐어요.");
       onClose();
     } catch {
       toast.error("오류가 발생했어요");
@@ -466,10 +482,20 @@ export default function ProductDetailSheet({
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-skin-line bg-skin-2 text-[15px] font-bold text-ink hover:border-cuke">
                 <MessageCircle size={18} /> 대화하기
               </button>
-              {!isFree && !isDone && (
+              {!isFree && !isDone && !isPending && (
                 <button onClick={() => onPay?.(product)}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-pay text-[15px] font-bold text-white hover:bg-pay/90">
                   <CreditCard size={18} /> 결제하기
+                </button>
+              )}
+              {isFree && !isDone && (
+                <button
+                  onClick={handleBuyerConfirmDeal}
+                  disabled={saving}
+                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-cuke text-[15px] font-bold text-skin-0 disabled:opacity-60"
+                >
+                  {saving ? <Loader2 size={18} className="animate-spin" /> : "🎁"}
+                  나눔 받았어요
                 </button>
               )}
             </>

@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trophy, Crown, Star, Gift, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
 import { fetchRanking, setMonthlyNanumi, type UserStat } from "@/lib/ranking";
+import { fetchPointsRanking, type PointsRankStat } from "@/lib/points";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 type Tab = "종합" | "나눔왕" | "판매왕";
+type Period = "month" | "year" | "all";
 
 const RANK_MEDALS = ["🥇", "🥈", "🥉"];
 const RANK_COLORS = [
@@ -37,6 +39,7 @@ export default function RankingPage() {
   const isAdmin = ADMIN_EMAILS.includes(user?.email || "");
 
   const [tab, setTab] = useState<Tab>("종합");
+  const [period, setPeriod] = useState<Period>("month");
   const [showAdmin, setShowAdmin] = useState(false);
   const [selectedUid, setSelectedUid] = useState("");
   const [selectedNick, setSelectedNick] = useState("");
@@ -52,9 +55,20 @@ export default function RankingPage() {
     staleTime: 60_000,
   });
 
+  const { data: pointsData, isLoading: pointsLoading } = useQuery<PointsRankStat[]>({
+    queryKey: ["pointsRanking", period],
+    queryFn: () => fetchPointsRanking(period),
+    staleTime: 60_000,
+  });
+
   const ranking = data?.ranking ?? [];
   const monthly = data?.monthlyNanumi;
-  const sorted = getSortedList(ranking, tab);
+
+  // 기간 탭에서는 포인트이력 기반, 전체 탭에서는 기존 products 기반
+  const activeRanking: UserStat[] = period === "all"
+    ? ranking
+    : (pointsData ?? []).map(p => ({ ...p }));
+  const sorted = getSortedList(activeRanking, tab);
 
   const handleSetNanumi = async () => {
     if (!selectedUid) { toast.error("수상자를 선택하세요"); return; }
@@ -129,6 +143,22 @@ export default function RankingPage() {
         </p>
       </div>
 
+      {/* ── 기간 필터 ── */}
+      <div className="mb-4 flex gap-2">
+        {([["month", "이달 집계"], ["year", `${new Date().getFullYear()}년`], ["all", "전체(역대)"]] as [Period, string][]).map(([p, label]) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`flex-1 rounded-full border py-2 text-[12px] font-bold transition-all ${
+              period === p ? "border-warn bg-warn/20 text-warn" : "border-skin-line text-muted"
+            }`}
+          >
+            <Star size={11} className="mr-1 inline" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* ── 탭 ── */}
       <div className="mb-4 flex gap-2">
         {(["종합", "나눔왕", "판매왕"] as Tab[]).map((t) => (
@@ -145,7 +175,7 @@ export default function RankingPage() {
       </div>
 
       {/* ── 리더보드 ── */}
-      {isLoading ? (
+      {(isLoading || (period !== "all" && pointsLoading)) ? (
         <div className="flex justify-center py-16">
           <Loader2 size={28} className="animate-spin text-cuke" />
         </div>

@@ -374,6 +374,47 @@ function doGet(e) {
     return getRankingData_();
   }
 
+  /* ── 내 포인트 이력 ── */
+  if (params.action === 'myPoints' && params.uid) {
+    try {
+      var ps = ensurePointsSheet_();
+      var pd = ps.getDataRange().getValues();
+      var recs = pd.slice(1)
+        .filter(function(r) { return String(r[1]) === String(params.uid); })
+        .map(function(r) {
+          return { id: r[0], uid: r[1], nick: r[2], type: r[3], productId: r[4],
+                   points: Number(r[5]), note: r[6], createdAt: r[7],
+                   year: Number(r[8]), month: Number(r[9]) };
+        });
+      return json_({ ok: true, records: recs });
+    } catch(e) { return json_({ ok: false, error: String(e) }); }
+  }
+
+  /* ── 기간별 포인트 랭킹 ── */
+  if (params.action === 'pointsRanking') {
+    try {
+      var period = params.period || 'month';
+      var now2 = new Date();
+      var cy = now2.getFullYear(), cm = now2.getMonth() + 1;
+      var ps2 = ensurePointsSheet_();
+      var pd2 = ps2.getDataRange().getValues();
+      var map2 = {};
+      pd2.slice(1).forEach(function(r) {
+        var yr = Number(r[8]), mo = Number(r[9]);
+        if (period === 'month' && (yr !== cy || mo !== cm)) return;
+        if (period === 'year' && yr !== cy) return;
+        var uid = String(r[1]), nick = String(r[2]), tp = String(r[3]);
+        if (!map2[uid]) map2[uid] = { uid: uid, nick: nick, total: 0, nanum: 0, sale: 0, points: 0 };
+        map2[uid].total++;
+        map2[uid].points += Number(r[5]);
+        if (tp === 'nanum') map2[uid].nanum++;
+        if (tp === 'sale') map2[uid].sale++;
+      });
+      var prk = Object.values(map2).sort(function(a, b) { return b.points - a.points; });
+      return json_({ ok: true, ranking: prk });
+    } catch(e) { return json_({ ok: false, error: String(e), ranking: [] }); }
+  }
+
   /* ── 이미지 프록시: Drive 파일 → base64 (CORS/CORP 완전 우회) ── */
   if (params.action === 'img' && params.id) {
     try {
@@ -471,7 +512,14 @@ function doPost(e) {
         result = json_({ ok: true });
         break;
       case 'confirmDeposit':
-        // 판매자가 입금 확인 → 거래완료
+        // 판매자가 입금 확인 → 거래완료 + 포인트 적립
+        addPointRecord_(body.id);
+        updateItem_(body.id, { status: '거래완료' });
+        result = json_({ ok: true });
+        break;
+      case 'confirmDeal':
+        // 구매자가 나눔 거래완료 확인 → 판매자 포인트 적립
+        addPointRecord_(body.id);
         updateItem_(body.id, { status: '거래완료' });
         result = json_({ ok: true });
         break;
@@ -901,6 +949,42 @@ function getProp_(k) {
 }
 function setProp_(k, v) {
   PropertiesService.getScriptProperties().setProperty(k, v);
+}
+
+/* ─── 포인트 이력 시트 ────────────────────────────────────── */
+function ensurePointsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('포인트이력');
+  if (!sh) {
+    sh = ss.insertSheet('포인트이력');
+    sh.appendRow(['id','uid','nick','type','productId','points','note','createdAt','year','month']);
+  }
+  return sh;
+}
+
+function addPointRecord_(productId) {
+  try {
+    var sh = ensurePointsSheet_();
+    var data = sh.getDataRange().getValues();
+    // 동일 productId는 한 번만 적립
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][4]) === String(productId)) return;
+    }
+    var rows = rowsToObjects_();
+    var p = null;
+    for (var j = 0; j < rows.length; j++) {
+      if (String(rows[j].id) === String(productId)) { p = rows[j]; break; }
+    }
+    if (!p) return;
+    var tp = p.deal === '나눔' ? 'nanum' : 'sale';
+    var pts = p.deal === '나눔' ? 3 : 2;
+    var now = new Date();
+    sh.appendRow([
+      Utilities.getUuid(), String(p.uid || ''), String(p.nick || '익명'),
+      tp, String(productId), pts, '거래완료 확인',
+      now.toISOString(), now.getFullYear(), now.getMonth() + 1
+    ]);
+  } catch(e) { /* 포인트 적립 실패해도 거래완료는 진행 */ }
 }
 
 /* ─── 랭킹 집계 ─────────────────────────────────────────── */

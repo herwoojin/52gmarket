@@ -6,9 +6,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { updateNickForUser } from "@/lib/sheets";
 import { fetchBankInfo, saveBankInfo, type BankInfo } from "@/lib/payment";
+import { fetchMyPoints, type PointRecord } from "@/lib/points";
 import { useTheme } from "@/lib/theme";
 import { LOCATIONS } from "@/types";
-import { LogOut, MapPin, Shield, Building2, User, Loader2, Landmark, Sparkles, FileText } from "lucide-react";
+import { LogOut, MapPin, Shield, Building2, User, Loader2, Landmark, Sparkles, FileText, Star } from "lucide-react";
 import { toast } from "sonner";
 
 const BANKS = [
@@ -49,12 +50,12 @@ export default function MePage() {
   const [saving, setSaving] = useState(false);
   const [bankInfo, setBankInfo] = useState<BankInfo>({ bankName: "", accountNumber: "", holderName: "" });
   const [savingBank, setSavingBank] = useState(false);
+  const [pointRecords, setPointRecords] = useState<PointRecord[]>([]);
 
   useEffect(() => {
     if (!user?.email) return;
-    fetchBankInfo(user.email).then((info) => {
-      if (info) setBankInfo(info);
-    });
+    fetchBankInfo(user.email).then((info) => { if (info) setBankInfo(info); });
+    fetchMyPoints(user.email).then(setPointRecords);
   }, [user?.email]);
 
   if (!user) return null;
@@ -279,6 +280,77 @@ export default function MePage() {
           계좌 정보 저장
         </button>
       </div>
+
+      {/* ── 내 포인트 ── */}
+      {(() => {
+        const now = new Date();
+        const cy = now.getFullYear(), cm = now.getMonth() + 1;
+        const total = pointRecords.reduce((s, r) => s + r.points, 0);
+        const thisMonth = pointRecords
+          .filter(r => r.year === cy && r.month === cm)
+          .reduce((s, r) => s + r.points, 0);
+        const by2026Month: Record<number, { nanum: number; sale: number }> = {};
+        pointRecords.filter(r => r.year === 2026).forEach(r => {
+          if (!by2026Month[r.month]) by2026Month[r.month] = { nanum: 0, sale: 0 };
+          if (r.type === "nanum") by2026Month[r.month].nanum += r.points;
+          else by2026Month[r.month].sale += r.points;
+        });
+        const months2026 = Object.keys(by2026Month).map(Number).sort((a, b) => a - b);
+        return (
+          <div className="mb-8 rounded-oiji border border-skin-line bg-skin-1 p-5">
+            <h4 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold">
+              <Star size={15} className="text-warn" />
+              내 포인트
+            </h4>
+            <p className="mb-4 text-[11px] text-muted">거래완료 시 포인트가 영구 적립됩니다 (나눔 +3점 / 판매 +2점)</p>
+
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-skin-2 p-3 text-center">
+                <p className="text-[11px] text-muted">누적 포인트</p>
+                <p className="mt-1 text-[26px] font-extrabold text-cuke">{total}<span className="text-[14px]">점</span></p>
+              </div>
+              <div className="rounded-xl bg-skin-2 p-3 text-center">
+                <p className="text-[11px] text-muted">이달 포인트</p>
+                <p className="mt-1 text-[26px] font-extrabold text-warn">{thisMonth}<span className="text-[14px]">점</span></p>
+              </div>
+            </div>
+
+            {months2026.length > 0 && (
+              <>
+                <p className="mb-2 text-[12px] font-bold text-muted">2026년 월별 내역</p>
+                <div className="overflow-hidden rounded-xl border border-skin-line">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="border-b border-skin-line bg-skin-2 text-muted">
+                        <th className="py-2 pl-3 text-left font-bold">월</th>
+                        <th className="py-2 text-center font-bold">나눔</th>
+                        <th className="py-2 text-center font-bold">판매</th>
+                        <th className="py-2 pr-3 text-right font-bold">합계</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {months2026.map(mo => {
+                        const d = by2026Month[mo];
+                        return (
+                          <tr key={mo} className="border-b border-skin-line last:border-0">
+                            <td className="py-2 pl-3 font-semibold text-ink">{mo}월</td>
+                            <td className="py-2 text-center text-cuke">+{d.nanum}</td>
+                            <td className="py-2 text-center text-pay">+{d.sale}</td>
+                            <td className="py-2 pr-3 text-right font-extrabold text-ink">{d.nanum + d.sale}점</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            {pointRecords.length === 0 && (
+              <p className="mt-2 text-center text-[12px] text-muted">아직 거래완료 포인트가 없어요. 나눔·판매를 완료해보세요!</p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 로그아웃 */}
       <button
