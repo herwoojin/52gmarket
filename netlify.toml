@@ -8,7 +8,24 @@
   to = "/index.html"
   status = 200
 
-# PWA 관련 헤더
+# ── HTML: 절대 캐시 금지 (구버전 HTML이 새 JS 청크 못 찾는 문제 방지) ──
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# ── JS/CSS 청크: 파일명에 해시 포함 → 배포마다 새 이름 → 장기 캐시 OK ──
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ── PWA ──
 [[headers]]
   for = "/.well-known/*"
   [headers.values]
@@ -19,10 +36,11 @@
   for = "/manifest.json"
   [headers.values]
     Content-Type = "application/manifest+json"
+    Cache-Control = "no-cache"
 
 [[headers]]
   for = "/sw.js"
   [headers.values]
     Content-Type = "application/javascript"
-    Cache-Control = "no-cache"
+    Cache-Control = "no-cache, no-store, must-revalidate"
     Service-Worker-Allowed = "/"
