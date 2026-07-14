@@ -10,10 +10,12 @@ const SHELL_URLS = [
   '/me',
 ];
 
-// Install — 앱 셸 캐시
+// Install — 앱 셸 캐시 (한 URL이 실패해도 전체 설치가 막히지 않도록 개별 캐싱)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(SHELL_URLS.map((url) => cache.add(url).catch(() => {})))
+    )
   );
   self.skipWaiting();
 });
@@ -30,20 +32,35 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch — 매물 API는 네트워크 우선, 나머지는 캐시 우선
+// Fetch — API는 네트워크 우선, 페이지(HTML)도 네트워크 우선(새 배포가 바로 보이도록),
+// 해시된 정적 자원(JS/CSS)만 캐시 우선
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
+  const url = new URL(req.url);
 
   // API 요청은 네트워크 우선
   if (url.href.includes('script.google.com') || url.href.includes('firestore')) {
+    event.respondWith(fetch(req).catch(() => caches.match(req)));
+    return;
+  }
+
+  // 페이지 탐색(HTML)은 항상 네트워크 우선 — 캐시가 낡은 index.html을 붙들고
+  // 옛 JS 청크를 참조해 '로딩 중...'에서 멈추는 문제 방지. 오프라인일 때만 캐시 사용
+  if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match('/')))
     );
     return;
   }
 
-  // 나머지는 캐시 우선
+  // 나머지(해시된 JS/CSS 등)는 캐시 우선
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });

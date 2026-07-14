@@ -17,7 +17,7 @@ export default function OneSignalInit() {
       try {
         await oneSignal.init({
           appId: ONESIGNAL_APP_ID,
-          serviceWorkerPath: "/sw.js",
+          serviceWorkerPath: "sw.js",
           serviceWorkerParam: { scope: "/" },
         });
       } catch (err) {
