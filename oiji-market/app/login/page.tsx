@@ -212,6 +212,7 @@ export default function LoginPage() {
                   ref={(el) => { codeRefs.current[i] = el; }}
                   type="text"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   maxLength={1}
                   value={digit}
                   onChange={(e) => handleCodeChange(i, e.target.value)}
