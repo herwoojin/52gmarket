@@ -8,6 +8,7 @@ import ProductTableRow from "@/components/ProductTableRow";
 import ProductDetailSheet from "@/components/ProductDetailSheet";
 import ChatSheet from "@/components/ChatSheet";
 import PaymentSheet from "@/components/PaymentSheet";
+import HomeLoadingMascot from "@/components/HomeLoadingMascot";
 import type { Product } from "@/types";
 import { CATEGORIES, DEALS, LOCATIONS } from "@/types";
 import { toast } from "sonner";
@@ -263,12 +264,7 @@ export default function HomePage() {
       </div>
 
       {/* 로딩 */}
-      {isLoading && (
-        <div className="animate-pulse overflow-hidden rounded-2xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/banner-home.png" alt="로딩 중" className="w-full object-cover opacity-80" draggable={false} />
-        </div>
-      )}
+      {isLoading && <HomeLoadingMascot />}
 
       {/* ── 크게 보기 ── */}
       {!isLoading && viewMode === "large" && (
