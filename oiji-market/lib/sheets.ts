@@ -34,6 +34,12 @@ export function getCachedProducts(): Product[] {
   }
 }
 
+/** 방금 등록한 매물을 캐시 맨 앞에 즉시 반영 (CDN 캐시가 갱신되기 전까지의 공백 메움) */
+export function prependCachedProduct(item: Product): void {
+  const cur = getCachedProducts();
+  setCachedProducts([item, ...cur.filter((p) => p.id !== item.id)]);
+}
+
 function setCachedProducts(items: Product[]): void {
   if (typeof window === "undefined") return;
   try {
@@ -43,12 +49,30 @@ function setCachedProducts(items: Product[]): void {
   }
 }
 
-/** 매물 목록 조회 */
+/**
+ * 매물 목록 조회.
+ * 1순위: /api/items (Netlify Function + CDN 캐시) — 보통 1초 미만
+ * 2순위: Apps Script 직접 호출 — 함수가 없거나 실패할 때의 폴백 (10~40초)
+ */
 export async function listProducts(): Promise<Product[]> {
   if (isDemoMode) {
     await new Promise((r) => setTimeout(r, 300));
     return DEMO_PRODUCTS.filter((p) => p.status !== "삭제");
   }
+
+  try {
+    const res = await fetch("/api/items", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data?.items) && data.items.length > 0) {
+        setCachedProducts(data.items as Product[]);
+        return data.items as Product[];
+      }
+    }
+  } catch {
+    // 폴백으로 진행
+  }
+
   const res = await fetch(APPS_SCRIPT_URL, { cache: "no-store" });
   const data = await res.json();
   const items = (data.items || []) as Product[];

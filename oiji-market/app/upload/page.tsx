@@ -4,13 +4,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { createProduct } from "@/lib/sheets";
+import { createProduct, prependCachedProduct } from "@/lib/sheets";
 import { toWebp, formatBytes, savingsPercent } from "@/lib/webp";
 import { uploadPhoto } from "@/lib/storage";
 import { MAX_PHOTOS, joinPhotoUrls } from "@/lib/driveImage";
 import { useNotifications } from "@/lib/notifications";
 import { CATEGORIES, LOCATIONS } from "@/types";
-import type { NewProduct, Notification } from "@/types";
+import type { NewProduct, Notification, Product } from "@/types";
 import { Camera, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -151,7 +151,20 @@ export default function UploadPage() {
           }
         }
 
-        queryClient.invalidateQueries({ queryKey: ["products"] });
+        // CDN 캐시가 최대 60초 낡을 수 있으므로, 방금 올린 매물은
+        // 로컬 목록 맨 앞에 즉시 반영해 바로 보이도록 한다.
+        const optimistic: Product = {
+          ...item,
+          id: result.id || `p${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          status: "판매중",
+          jjim: 0,
+          chats: 0,
+        };
+        prependCachedProduct(optimistic);
+        queryClient.setQueryData<Product[]>(["products"], (prev) =>
+          prev ? [optimistic, ...prev] : [optimistic]
+        );
         toast("🥒 매물을 올렸어요!");
         router.push("/");
       } else {

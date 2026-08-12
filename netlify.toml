@@ -3,6 +3,11 @@
   command = "pnpm build"
   publish = "out"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# SPA 폴백 — /api/* 는 Netlify Function 이 먼저 처리하므로 여기 걸리지 않는다
 [[redirects]]
   from = "/*"
   to = "/index.html"
