@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Product } from "@/types";
 import { Heart, MapPin, MessageCircle, Pencil } from "lucide-react";
-import { loadDriveImg } from "@/lib/driveImage";
+import { loadDriveImg, parsePhotoUrls } from "@/lib/driveImage";
 
 interface ProductCardProps {
   product: Product;
@@ -32,7 +32,7 @@ export default function ProductCard({
 
   useEffect(() => {
     let cancelled = false;
-    loadDriveImg(product.photoURL).then(src => { if (!cancelled) setImgSrc(src); });
+    loadDriveImg(parsePhotoUrls(product.photoURL)[0]).then(src => { if (!cancelled) setImgSrc(src); });
     return () => { cancelled = true; };
   }, [product.photoURL]);
 
@@ -74,6 +74,13 @@ export default function ProductCard({
         ) : (
           <span className="absolute left-2.5 top-2.5 rounded-lg border border-cuke bg-skin-0/80 px-2.5 py-1 text-[11px] font-extrabold text-flesh">
             판매
+          </span>
+        )}
+
+        {/* 사진 장수 배지 */}
+        {parsePhotoUrls(product.photoURL).length > 1 && (
+          <span className="absolute bottom-2 left-2 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            📷 {parsePhotoUrls(product.photoURL).length}
           </span>
         )}
 

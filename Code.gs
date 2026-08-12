@@ -81,7 +81,9 @@ function uploadToDrive_(base64, filename, mimeType) {
  *  🖼️ 시트 L열 이미지 하이퍼링크 + O열 미리보기 업데이트
  *  ========================================================= */
 function setPhotoPreview_(sh, row, url) {
-  if (!url || !String(url).startsWith("http")) return;
+  // photoURL 은 사진 여러 장이 쉼표로 이어져 있을 수 있음 — 미리보기는 첫 장만 사용
+  url = String(url || "").split(",")[0].trim();
+  if (!url || !url.startsWith("http")) return;
   // L열(photoURL)은 건드리지 않음 — appendRow/setValue 가 이미 올바른 URL을 기록했음
   // L열에 하이퍼링크를 쓰면 getValues()가 "이미지 보기" 텍스트를 반환해 URL이 사라지는 버그 방지
   sh.getRange(row, 15).setFormula('=IMAGE("' + url + '",4,80,80)');

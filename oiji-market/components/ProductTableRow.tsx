@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Product } from "@/types";
 import { Heart, Pencil } from "lucide-react";
-import { loadDriveImg } from "@/lib/driveImage";
+import { loadDriveImg, parsePhotoUrls } from "@/lib/driveImage";
 
 interface Props {
   product: Product;
@@ -23,7 +23,7 @@ export default function ProductTableRow({ product, isJjimed, currentUid, onJjimT
 
   useEffect(() => {
     let cancelled = false;
-    loadDriveImg(product.photoURL).then(src => { if (!cancelled) setImgSrc(src); });
+    loadDriveImg(parsePhotoUrls(product.photoURL)[0]).then(src => { if (!cancelled) setImgSrc(src); });
     return () => { cancelled = true; };
   }, [product.photoURL]);
 

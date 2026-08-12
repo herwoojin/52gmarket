@@ -7,7 +7,7 @@ import { CATEGORIES, LOCATIONS } from "@/types";
 import { Heart, MessageCircle, MapPin, Tag, X, CreditCard, Pencil, Trash2, Loader2 } from "lucide-react";
 import { uploadPhoto } from "@/lib/storage";
 import { toWebp } from "@/lib/webp";
-import { loadDriveImg } from "@/lib/driveImage";
+import { loadDriveImg, parsePhotoUrls } from "@/lib/driveImage";
 import { confirmDeposit } from "@/lib/payment";
 import { buyerConfirmDeal } from "@/lib/points";
 import { toast } from "sonner";
@@ -42,13 +42,32 @@ export default function ProductDetailSheet({
   const router = useRouter();
   const [editMode, setEditMode] = useState(initialEditMode);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [detailImgSrc, setDetailImgSrc] = useState("");
+  // 사진 여러 장 — 각 장을 개별로 불러와 도착하는 대로 표시
+  const photoUrls = parsePhotoUrls(product?.photoURL);
+  const photoKey = photoUrls.join(",");
+  const [loaded, setLoaded] = useState<{ key: string; srcs: string[] }>({ key: "", srcs: [] });
+  const [active, setActive] = useState<{ key: string; idx: number }>({ key: "", idx: 0 });
 
   useEffect(() => {
     let cancelled = false;
-    loadDriveImg(product?.photoURL).then(src => { if (!cancelled) setDetailImgSrc(src); });
+    const urls = parsePhotoUrls(photoKey);
+    urls.forEach((u, i) => {
+      loadDriveImg(u).then((src) => {
+        if (cancelled) return;
+        setLoaded((prev) => {
+          const base = prev.key === photoKey ? prev.srcs : new Array(urls.length).fill("");
+          const next = [...base];
+          next[i] = src;
+          return { key: photoKey, srcs: next };
+        });
+      });
+    });
     return () => { cancelled = true; };
-  }, [product?.photoURL]);
+  }, [photoKey]);
+
+  const photoSrcs = loaded.key === photoKey ? loaded.srcs : [];
+  const activeIdx = active.key === photoKey ? active.idx : 0;
+  const detailImgSrc = photoSrcs[activeIdx] || "";
 
   // 편집 폼 상태
   const [title, setTitle] = useState("");
@@ -106,7 +125,8 @@ export default function ProductDetailSheet({
     setDesc(product.desc || "");
     setStatus(product.status as "판매중" | "거래완료");
     setPhotoURL(product.photoURL || "");
-    setPreviewUrl(product.photoURL || "");
+    // 저장된 값은 쉼표로 이어진 여러 장이므로, 미리보기는 이미 불러온 대표 이미지를 사용
+    setPreviewUrl(photoSrcs[0] || "");
     setPhotoBlob(null);
     setEditMode(true);
   };
@@ -381,7 +401,37 @@ export default function ProductDetailSheet({
                   <span className="rounded-xl bg-amber-500 px-6 py-3 text-lg font-extrabold text-white">입금대기 중</span>
                 </div>
               )}
+              {photoUrls.length > 1 && (
+                <span className="absolute right-2 top-2 rounded-lg bg-black/70 px-2 py-1 text-[11px] font-bold text-white">
+                  {activeIdx + 1} / {photoUrls.length}
+                </span>
+              )}
             </div>
+
+            {/* 사진 썸네일 — 각 장은 도착하는 대로 채워짐 */}
+            {photoUrls.length > 1 && (
+              <div className="-mt-2 mb-4 flex gap-2">
+                {photoUrls.map((u, i) => (
+                  <button
+                    key={u}
+                    onClick={() => setActive({ key: photoKey, idx: i })}
+                    aria-label={`사진 ${i + 1} 보기`}
+                    className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition-all ${
+                      i === activeIdx ? "border-cuke" : "border-skin-line opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    {photoSrcs[i] ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={photoSrcs[i]} alt={`사진 ${i + 1}`} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-skin-2">
+                        <Loader2 size={14} className="animate-spin text-muted" />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <h2 className="text-xl font-extrabold leading-tight tracking-tight">{product.title}</h2>
             <p className={`mt-2 text-2xl font-extrabold ${isFree ? "text-warn" : "text-ink"}`}>

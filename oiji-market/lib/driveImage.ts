@@ -7,6 +7,27 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 500;
 const MAX_CONCURRENT = 6;
 
+/** 매물 1건당 최대 사진 수 */
+export const MAX_PHOTOS = 3;
+
+/**
+ * photoURL 필드는 사진 여러 장을 쉼표로 이어 저장한다.
+ * (Drive URL에는 쉼표가 없어 안전하며, 기존 1장짜리 값도 그대로 동작)
+ */
+export function parsePhotoUrls(photoURL: string | undefined): string[] {
+  if (!photoURL) return [];
+  return photoURL
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, MAX_PHOTOS);
+}
+
+/** 사진 URL 배열을 저장용 문자열로 합친다 */
+export function joinPhotoUrls(urls: string[]): string {
+  return urls.filter(Boolean).slice(0, MAX_PHOTOS).join(",");
+}
+
 function normalize(url: string | undefined): string {
   if (!url) return "";
   if (url.startsWith("blob:") || url === "이미지 보기" || url === "이미지링크") return "";

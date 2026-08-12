@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { createProduct } from "@/lib/sheets";
 import { toWebp, formatBytes, savingsPercent } from "@/lib/webp";
 import { uploadPhoto } from "@/lib/storage";
+import { MAX_PHOTOS, joinPhotoUrls } from "@/lib/driveImage";
 import { useNotifications } from "@/lib/notifications";
 import { CATEGORIES, LOCATIONS } from "@/types";
 import type { NewProduct, Notification } from "@/types";
@@ -27,48 +28,73 @@ export default function UploadPage() {
   const [desc, setDesc] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // 사진 상태
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [webpBlob, setWebpBlob] = useState<Blob | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
+  // 사진 상태 — 최대 MAX_PHOTOS 장
+  interface PhotoItem {
+    original: File;
+    webp: Blob;
+    preview: string;
+  }
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [converting, setConverting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const processImg = useCallback(async (file: File) => {
-    setOriginalFile(file);
+  const processImgs = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
     setConverting(true);
     try {
-      const blob = await toWebp(file);
-      setWebpBlob(blob);
-      setPreviewUrl(URL.createObjectURL(blob));
-      toast("🖼️ WEBP 변환 완료!");
+      const room = MAX_PHOTOS - photos.length;
+      if (room <= 0) {
+        toast.error(`사진은 최대 ${MAX_PHOTOS}장까지 올릴 수 있어요`);
+        return;
+      }
+      const accepted = files.slice(0, room);
+      const converted: PhotoItem[] = [];
+      for (const file of accepted) {
+        const blob = await toWebp(file);
+        converted.push({ original: file, webp: blob, preview: URL.createObjectURL(blob) });
+      }
+      setPhotos((prev) => [...prev, ...converted]);
+      if (files.length > room) {
+        toast(`🖼️ ${converted.length}장 변환 완료 (최대 ${MAX_PHOTOS}장까지만 추가돼요)`);
+      } else {
+        toast(`🖼️ WEBP 변환 완료! (${converted.length}장)`);
+      }
     } catch (err) {
       toast.error("이미지 변환에 실패했어요");
       console.error(err);
     } finally {
       setConverting(false);
     }
-  }, []);
+  }, [photos.length]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) await processImg(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) await processImgs(files);
+    e.target.value = "";
+  };
+
+  const removePhoto = (idx: number) => {
+    setPhotos((prev) => {
+      const target = prev[idx];
+      if (target) URL.revokeObjectURL(target.preview);
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   // 클립보드 붙여넣기 (스크린캡처 Ctrl+V / ⌘V)
   useEffect(() => {
     const onPaste = async (e: ClipboardEvent) => {
       const items = Array.from(e.clipboardData?.items ?? []);
-      const imgItem = items.find(it => it.type.startsWith("image/"));
-      if (!imgItem) return;
-      const file = imgItem.getAsFile();
-      if (!file) return;
+      const imgItems = items.filter(it => it.type.startsWith("image/"));
+      if (imgItems.length === 0) return;
+      const files = imgItems.map(it => it.getAsFile()).filter((f): f is File => !!f);
+      if (files.length === 0) return;
       toast("📋 클립보드 이미지 감지!");
-      await processImg(file);
+      await processImgs(files);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [processImg]);
+  }, [processImgs]);
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -82,10 +108,12 @@ export default function UploadPage() {
 
     setSubmitting(true);
     try {
-      let photoURL = "";
-      if (webpBlob) {
-        photoURL = await uploadPhoto(webpBlob, user?.email || "demo-user");
+      // 사진 여러 장을 순차 업로드해 쉼표로 이어 저장
+      const uploaded: string[] = [];
+      for (const p of photos) {
+        uploaded.push(await uploadPhoto(p.webp, user?.email || "demo-user"));
       }
+      const photoURL = joinPhotoUrls(uploaded);
 
       const item: NewProduct = {
         title: title.trim(),
@@ -153,11 +181,11 @@ export default function UploadPage() {
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
+          multiple
           onChange={handleFileSelect}
           className="hidden"
         />
-        {!previewUrl ? (
+        {photos.length === 0 ? (
           <button
             onClick={() => fileRef.current?.click()}
             className="w-full rounded-oiji border-2 border-dashed border-skin-line bg-skin-1 px-6 py-8 text-center transition-colors hover:border-cuke/50 active:border-cuke"
@@ -168,49 +196,58 @@ export default function UploadPage() {
               <Upload size={11} />
               스크린샷은 <kbd className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-mono text-white">⌘V</kbd> / <kbd className="rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] font-mono text-white">Ctrl+V</kbd> 로 바로 붙여넣기
             </p>
-            <p className="mt-2 text-[11px] text-muted">자동으로 WEBP 변환됩니다</p>
+            <p className="mt-2 text-[11px] text-muted">
+              자동으로 WEBP 변환 · 최대 {MAX_PHOTOS}장
+            </p>
           </button>
         ) : (
-          <div className="flex gap-3 rounded-oiji border border-skin-line bg-skin-1 p-3">
-            <img
-              src={previewUrl}
-              alt="미리보기"
-              className="h-22 w-22 shrink-0 rounded-xl border border-skin-line object-cover"
-            />
-            <div className="flex-1 text-[12px] leading-relaxed">
-              {originalFile && (
-                <>
-                  <p>
-                    원본:{" "}
-                    <span className="rounded-md bg-skin-2 px-1.5 py-0.5 text-[11px]">
-                      {formatBytes(originalFile.size)}
+          <div className="rounded-oiji border border-skin-line bg-skin-1 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[12px] font-bold text-ink">
+                사진 {photos.length}/{MAX_PHOTOS}장
+                <span className="ml-1.5 text-[11px] font-normal text-muted">
+                  첫 번째 사진이 대표 이미지예요
+                </span>
+              </p>
+              {photos.length < MAX_PHOTOS && (
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="rounded-lg border border-cuke/50 bg-cuke/10 px-2.5 py-1 text-[11px] font-bold text-cuke"
+                >
+                  + 사진 추가
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map((p, i) => (
+                <div key={p.preview} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.preview}
+                    alt={`미리보기 ${i + 1}`}
+                    className="aspect-square w-full rounded-xl border border-skin-line object-cover"
+                  />
+                  {i === 0 && (
+                    <span className="absolute left-1 top-1 rounded-md bg-cuke px-1.5 py-0.5 text-[9px] font-extrabold text-skin-0">
+                      대표
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removePhoto(i)}
+                    aria-label={`사진 ${i + 1} 삭제`}
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-[11px] font-bold text-white"
+                  >
+                    ×
+                  </button>
+                  <p className="mt-1 text-center text-[10px] text-muted">
+                    {formatBytes(p.webp.size)}
+                    <span className="ml-1 text-cuke-bright">
+                      -{savingsPercent(p.original.size, p.webp.size)}%
                     </span>
                   </p>
-                  {webpBlob && (
-                    <>
-                      <p className="mt-1">
-                        변환:{" "}
-                        <span className="rounded-md bg-skin-2 px-1.5 py-0.5 text-[11px]">
-                          {formatBytes(webpBlob.size)}
-                        </span>
-                      </p>
-                      <p className="mt-1 font-extrabold text-cuke-bright">
-                        🎉 {savingsPercent(originalFile.size, webpBlob.size)}% 절감
-                      </p>
-                    </>
-                  )}
-                </>
-              )}
-              <button
-                onClick={() => {
-                  setOriginalFile(null);
-                  setWebpBlob(null);
-                  setPreviewUrl("");
-                }}
-                className="mt-2 text-[11px] text-muted underline"
-              >
-                다시 선택
-              </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
