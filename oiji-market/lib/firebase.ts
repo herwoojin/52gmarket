@@ -15,6 +15,14 @@ const firebaseConfig = {
 /** 환경변수가 비어있으면 Firebase 미사용 (기존 Apps Script 경로로 폴백) */
 export const isFirebaseEnabled = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
 
+/**
+ * Firebase Storage 는 신규 프로젝트에서 Blaze(종량제) 플랜을 요구한다.
+ * 무료(Spark) 플랜에서는 사진을 기존처럼 Apps Script → Google Drive 로 올린다.
+ * 나중에 요금제를 올리면 NEXT_PUBLIC_FIREBASE_STORAGE_ENABLED=true 로 켤 수 있다.
+ */
+export const isFirebaseStorageEnabled =
+  isFirebaseEnabled && process.env.NEXT_PUBLIC_FIREBASE_STORAGE_ENABLED === "true";
+
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let storage: FirebaseStorage | null = null;

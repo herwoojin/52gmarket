@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, isFirebaseEnabled } from "./firebase";
+import { storage, isFirebaseStorageEnabled } from "./firebase";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
@@ -34,8 +34,9 @@ async function uploadToDrive(blob: Blob): Promise<string> {
 
 /** WEBP blob을 업로드하고 다운로드 URL 반환 */
 export async function uploadPhoto(blob: Blob, uid: string): Promise<string> {
-  // Firebase Storage 사용
-  if (isFirebaseEnabled && storage) {
+  // Firebase Storage 는 신규 프로젝트에서 유료(Blaze) 플랜을 요구하므로
+  // 기본적으로 사용하지 않는다. 나중에 요금제를 올리면 환경변수로 켤 수 있다.
+  if (isFirebaseStorageEnabled && storage) {
     const storageRef = ref(storage, `listings/${uid}/${Date.now()}.webp`);
     await uploadBytes(storageRef, blob, { contentType: "image/webp" });
     return getDownloadURL(storageRef);

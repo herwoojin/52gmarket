@@ -12,7 +12,7 @@
 | 매물 목록·등록·수정 | **Firestore** | 실시간 반영 |
 | 채팅 | **Firestore** | 실시간 반영 |
 | 읽음 상태 | **Firestore** | 실시간 반영 |
-| 사진 저장 | **Firebase Storage** | Drive 프록시(base64) 제거 |
+| 사진 저장 | 앱스크립트 → Google Drive (기존 유지) | Firebase Storage 는 유료 플랜 필요 |
 | 거래완료·포인트 기록 | 앱스크립트 + 시트 | 이력 보관 |
 
 ---
@@ -93,7 +93,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:1078863807156:web:15df1c98f6729f71c6cde1
 Firebase 콘솔에서 각각 붙여넣고 **게시**:
 
 - **Firestore Database → 규칙** ← 저장소의 `firestore.rules` 내용
-- **Storage → 규칙** ← 저장소의 `storage.rules` 내용
+
+> Storage 규칙은 필요 없습니다. Firebase Storage 는 신규 프로젝트에서
+> Blaze(종량제) 플랜을 요구하므로 사용하지 않고, 사진은 기존처럼
+> 앱스크립트를 통해 Google Drive 에 저장합니다.
+> 나중에 요금제를 올려 쓰고 싶으면 Netlify 환경변수에
+> `NEXT_PUBLIC_FIREBASE_STORAGE_ENABLED=true` 를 추가하면 됩니다.
 
 기본 규칙(테스트 모드)은 30일 후 전체 차단되거나, 반대로 전체 공개일 수 있으니
 반드시 위 파일 내용으로 교체하세요.
