@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Mail, KeyRound, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { ALLOWED_EMAIL_DOMAINS, isAllowedEmail, getCompanyName } from "@/types";
+import { fetchAppsScript } from "@/lib/appsScript";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
@@ -15,7 +16,8 @@ async function postToScript(payload: object) {
     await new Promise((r) => setTimeout(r, 800));
     return { ok: true, email: (payload as { email?: string }).email };
   }
-  const res = await fetch(APPS_SCRIPT_URL, {
+  // Apps Script 가 간헐적으로 404 를 반환하므로 재시도 래퍼를 사용
+  const res = await fetchAppsScript(APPS_SCRIPT_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(payload),
@@ -62,7 +64,7 @@ export default function LoginPage() {
       if (res.ok) {
         setStep("code");
         setCountdown(300); // 5분
-        toast("📧 인증번호를 발송했어요. 이메일을 확인해주세요!");
+        toast("📧 인증번호를 발송했어요. 메일이 여러 통이면 가장 최근 번호를 입력하세요.");
         setTimeout(() => codeRefs.current[0]?.focus(), 200);
       } else {
         toast.error(res.error || "발송에 실패했어요");

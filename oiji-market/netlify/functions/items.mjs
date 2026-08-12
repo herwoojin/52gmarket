@@ -32,14 +32,28 @@ export default async () => {
   }
 
   try {
-    // Apps Script 가 간헐적으로 매우 느려 상한을 둔다.
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 45000);
-    const res = await fetch(APPS_SCRIPT_URL, {
-      redirect: "follow",
-      signal: ctl.signal,
-    });
-    clearTimeout(timer);
+    // Apps Script 는 정상 실행되고도 결과 조회 단계에서 간헐적으로 404 를
+    // 반환한다(실측 40%). 일시적이므로 짧은 백오프로 재시도한다.
+    let res = null;
+    let lastStatus = 0;
+    for (const wait of [0, 800, 2000]) {
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 45000);
+      try {
+        const r = await fetch(APPS_SCRIPT_URL, {
+          redirect: "follow",
+          signal: ctl.signal,
+        });
+        lastStatus = r.status;
+        if (r.ok) { res = r; break; }
+      } catch {
+        // 다음 시도로
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    if (!res) throw new Error(`upstream failed (last status ${lastStatus})`);
 
     const data = await res.json();
     if (Array.isArray(data?.items)) {

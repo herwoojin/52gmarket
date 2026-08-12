@@ -1,5 +1,6 @@
 import type { Product, NewProduct } from "@/types";
 import { DEMO_PRODUCTS } from "./demo-data";
+import { fetchAppsScript } from "./appsScript";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 const API_TOKEN = process.env.NEXT_PUBLIC_OIJI_API_TOKEN || "";
@@ -9,7 +10,7 @@ const isDemoMode = !APPS_SCRIPT_URL;
 // POST 헬퍼 — Content-Type text/plain 으로 프리플라이트 회피
 async function post(payload: object) {
   if (isDemoMode) return { ok: true };
-  const res = await fetch(APPS_SCRIPT_URL, {
+  const res = await fetchAppsScript(APPS_SCRIPT_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ ...payload, token: API_TOKEN }),
@@ -73,7 +74,7 @@ export async function listProducts(): Promise<Product[]> {
     // 폴백으로 진행
   }
 
-  const res = await fetch(APPS_SCRIPT_URL, { cache: "no-store" });
+  const res = await fetchAppsScript(APPS_SCRIPT_URL, { cache: "no-store" });
   const data = await res.json();
   const items = (data.items || []) as Product[];
   if (items.length > 0) setCachedProducts(items);
