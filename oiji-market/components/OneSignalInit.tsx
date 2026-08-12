@@ -19,6 +19,14 @@ export default function OneSignalInit() {
           appId: ONESIGNAL_APP_ID,
           serviceWorkerPath: "sw.js",
           serviceWorkerParam: { scope: "/" },
+          // 자동 구독 팝업 비활성화 — 알림 페이지의 '푸시 알림 켜기' 버튼으로만 요청한다
+          autoResubscribe: true,
+          promptOptions: {
+            slidedown: {
+              prompts: [{ type: "push", autoPrompt: false }],
+            },
+          },
+          welcomeNotification: { disable: true },
         });
       } catch (err) {
         // OneSignal 대시보드에서 Web Push 플랫폼 설정이 안 끝났을 때 등 init 자체가 실패할 수 있음
