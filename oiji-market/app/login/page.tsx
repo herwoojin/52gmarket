@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Mail, KeyRound, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { ALLOWED_EMAIL_DOMAINS, isAllowedEmail, getCompanyName } from "@/types";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
@@ -47,11 +48,12 @@ export default function LoginPage() {
     return () => clearInterval(t);
   }, [countdown]);
 
-  const isValidEmail = /^[^\s@]+@gsretail\.com$/i.test(email);
+  const isValidEmail = isAllowedEmail(email);
+  const companyName = getCompanyName(email);
 
   const handleSendOtp = async () => {
     if (!isValidEmail) {
-      toast.error("@gsretail.com 이메일만 사용할 수 있어요");
+      toast.error("GS 계열사 이메일만 사용할 수 있어요");
       return;
     }
     setSending(true);
@@ -166,9 +168,26 @@ export default function LoginPage() {
               autoFocus
               className="mb-2 w-full rounded-2xl border border-skin-line bg-skin-1 px-4 py-4 text-[16px] text-ink outline-none transition-colors placeholder:text-muted/50 focus:border-cuke"
             />
-            <p className="mb-6 text-[12px] text-muted">
-              @gsretail.com 이메일로 인증번호가 발송됩니다
-            </p>
+            {companyName ? (
+              <p className="mb-6 flex items-center gap-1.5 text-[12px] font-bold text-cuke">
+                <span>✓</span> {companyName} 계정으로 확인됐어요
+              </p>
+            ) : (
+              <details className="mb-6 text-[12px] text-muted">
+                <summary className="cursor-pointer list-none">
+                  GS 계열사 이메일로 인증번호가 발송됩니다
+                  <span className="ml-1 underline">사용 가능 도메인 보기</span>
+                </summary>
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-xl bg-skin-1 p-3 text-[11px]">
+                  {Object.entries(ALLOWED_EMAIL_DOMAINS).map(([domain, name]) => (
+                    <div key={domain} className="flex flex-col">
+                      <span className="font-semibold text-ink">{name}</span>
+                      <span className="text-muted">@{domain}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
 
             <button
               onClick={handleSendOtp}
@@ -188,7 +207,7 @@ export default function LoginPage() {
 
             {!APPS_SCRIPT_URL && (
               <p className="mt-4 rounded-xl bg-warn/10 px-3 py-2 text-center text-[11px] text-warn">
-                데모 모드 — Apps Script 미설정. 아무 @gsretail.com 이메일 + 아무 6자리로 로그인 가능
+                데모 모드 — Apps Script 미설정. 아무 계열사 이메일 + 아무 6자리로 로그인 가능
               </p>
             )}
           </div>

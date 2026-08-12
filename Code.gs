@@ -718,13 +718,34 @@ function doPost(e) {
 }
 
 /* =========================================================
- *  OTP 이메일 인증 — @gsretail.com 전용
+ *  OTP 이메일 인증 — GS 계열사 도메인 전용
  *  ========================================================= */
+/* 로그인 허용 도메인 (GS 계열사) — 부분 일치로 우회되지 않도록 완전 일치 비교 */
+var ALLOWED_EMAIL_DOMAINS = [
+  "gs.co.kr",        // (주)GS
+  "gsretail.com",    // GS리테일
+  "gsenc.com",       // GS건설
+  "gscaltex.com",    // GS칼텍스
+  "gspower.co.kr",   // GS파워
+  "gseps.com",       // GS EPS
+  "gsenr.com",       // GS E&R
+  "gsg.co.kr",       // GS글로벌
+  "gsentec.com",     // GS엔텍
+  "gssports.co.kr",  // GS스포츠
+  "parnas.co.kr"     // 파르나스호텔
+];
+
+function isAllowedEmail_(email) {
+  var m = /^[^\s@]+@([^\s@]+)$/.exec(String(email || "").trim().toLowerCase());
+  if (!m) return false;
+  return ALLOWED_EMAIL_DOMAINS.indexOf(m[1]) >= 0;
+}
+
 function sendOtp_(email) {
-  if (!email || !/@gsretail\.com$/i.test(email)) {
+  if (!isAllowedEmail_(email)) {
     return json_({
       ok: false,
-      error: "@gsretail.com 이메일만 사용할 수 있어요",
+      error: "GS 계열사 이메일만 사용할 수 있어요",
     });
   }
   const code = String(Math.floor(100000 + Math.random() * 900000));
