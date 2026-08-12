@@ -59,10 +59,13 @@ export default function HomePage() {
   /* ── 실시간 동기화: 10초마다 ping → 시트 변경 감지 시 즉시 리프레시 ── */
   const lastModifiedRef = useRef<number>(0);
 
+  // Apps Script 는 동시 실행 수가 제한돼 요청이 몰리면 서로를 지연시킨다.
+  // 핵심인 매물 조회가 끝난 뒤에만, 넉넉한 주기로 폴링한다.
   const { data: lastModified = 0 } = useQuery({
     queryKey: ["ping"],
     queryFn: getLastModified,
-    refetchInterval: 10_000,
+    enabled: !isFetching,
+    refetchInterval: 60_000,
     staleTime: 0,
     gcTime: 0,
   });

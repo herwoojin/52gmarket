@@ -1,7 +1,7 @@
 // OneSignal 푸시 수신·클릭 처리를 이 커스텀 SW에 병합
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = 'oiji-market-v1';
+const CACHE_NAME = 'oiji-market-v2';
 const SHELL_URLS = [
   '/',
   '/jar',
@@ -38,19 +38,10 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // API 요청은 네트워크 우선. 절대 캐시에 저장하지 않으므로 실패 시
-  // caches.match()는 항상 undefined를 반환 — respondWith에 undefined를 주면
-  // "Failed to convert value to 'Response'" 크래시가 나므로 항상 유효한
-  // Response로 감싸서 반환한다
-  if (url.href.includes('script.google.com') || url.href.includes('firestore')) {
-    event.respondWith(
-      fetch(req).catch(() =>
-        new Response(JSON.stringify({ ok: false, error: 'network' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      )
-    );
+  // 외부 API(Apps Script 등)는 서비스워커가 아예 건드리지 않는다.
+  // respondWith 로 가로채면 302 리다이렉트·CORS 처리가 브라우저 기본 동작과
+  // 달라져 404/CORS 오류가 나고 지연만 늘어난다. 그냥 통과시키는 게 가장 빠르고 안전.
+  if (url.origin !== self.location.origin) {
     return;
   }
 

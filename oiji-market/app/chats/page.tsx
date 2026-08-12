@@ -26,7 +26,7 @@ export default function ChatsPage() {
     queryKey: ["sellerChats", user?.email],
     queryFn: () => fetchSellerChats(user?.email || ""),
     enabled: !!user?.email,
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
     staleTime: 0,
   });
 
@@ -34,7 +34,7 @@ export default function ChatsPage() {
     queryKey: ["chatReads", user?.email],
     queryFn: () => fetchChatReads(user?.email || ""),
     enabled: !!user?.email,
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
     staleTime: 0,
   });
 
