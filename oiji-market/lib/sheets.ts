@@ -17,6 +17,32 @@ async function post(payload: object) {
   return res.json();
 }
 
+const PRODUCTS_CACHE_KEY = "oiji-products-cache";
+
+/**
+ * 직전에 성공적으로 받아온 매물 목록.
+ * Apps Script 응답이 5~70초로 매우 느리고 편차가 커서, 재방문 시
+ * 캐시를 즉시 보여주고 새 데이터는 뒤에서 갱신한다.
+ */
+export function getCachedProducts(): Product[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Product[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setCachedProducts(items: Product[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(items));
+  } catch {
+    // 용량 초과 등은 무시
+  }
+}
+
 /** 매물 목록 조회 */
 export async function listProducts(): Promise<Product[]> {
   if (isDemoMode) {
@@ -25,7 +51,9 @@ export async function listProducts(): Promise<Product[]> {
   }
   const res = await fetch(APPS_SCRIPT_URL, { cache: "no-store" });
   const data = await res.json();
-  return data.items || [];
+  const items = (data.items || []) as Product[];
+  if (items.length > 0) setCachedProducts(items);
+  return items;
 }
 
 /** 마지막 시트 변경 타임스탬프 조회 (실시간 동기화 폴링용) */

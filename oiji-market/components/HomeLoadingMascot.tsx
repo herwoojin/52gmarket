@@ -9,13 +9,27 @@ const MESSAGES = [
   "오늘의 나눔·판매 매물 준비 중...",
 ];
 
+/** 서버가 진행률을 알려주지 않으므로 경과 시간으로 추정한다.
+ *  실측 응답시간이 5~70초로 편차가 커서, 95%에 점근하다 완료 시 사라진다. */
+const TAU_MS = 14000;
+
 export default function HomeLoadingMascot() {
   const [msgIdx, setMsgIdx] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setMsgIdx((i) => (i + 1) % MESSAGES.length), 1800);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    const start = Date.now();
+    const t = setInterval(() => setElapsed(Date.now() - start), 100);
+    return () => clearInterval(t);
+  }, []);
+
+  const pct = Math.min(95, Math.round(100 * (1 - Math.exp(-elapsed / TAU_MS))));
+  const secs = (elapsed / 1000).toFixed(1);
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-8">
@@ -29,6 +43,25 @@ export default function HomeLoadingMascot() {
       <p key={msgIdx} className="oiji-msg-fade text-[13px] font-bold text-muted">
         {MESSAGES[msgIdx]}
       </p>
+
+      {/* 진행률 — 서버가 진행률을 주지 않아 경과 시간 기반 추정치 */}
+      <div className="w-full max-w-[260px]">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <span className="text-[20px] font-extrabold tabular-nums text-cuke">{pct}%</span>
+          <span className="text-[11px] tabular-nums text-muted">{secs}초</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-skin-2">
+          <div
+            className="h-full rounded-full bg-cuke transition-[width] duration-200 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-center text-[10px] leading-tight text-muted">
+          {elapsed > 20000
+            ? "서버(구글 시트) 응답이 느린 상태예요. 조금만 더 기다려주세요"
+            : "예상 진행률이에요 (서버가 정확한 진행률을 제공하지 않아요)"}
+        </p>
+      </div>
 
       {/* 상품 로딩 스켈레톤 카드 */}
       <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3">

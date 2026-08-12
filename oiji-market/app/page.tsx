@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listProducts, updateProduct, removeProduct, getLastModified } from "@/lib/sheets";
+import { listProducts, updateProduct, removeProduct, getLastModified, getCachedProducts } from "@/lib/sheets";
 import ProductCard from "@/components/ProductCard";
 import ProductTableRow from "@/components/ProductTableRow";
 import ProductDetailSheet from "@/components/ProductDetailSheet";
@@ -18,10 +18,16 @@ import { LayoutGrid, Grid3X3, Table2, ChevronUp, ChevronDown, ChevronsUpDown } f
 export default function HomePage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data: products = [], isLoading } = useQuery({
+  // 캐시된 매물이 있으면 즉시 보여주고 새 데이터는 백그라운드에서 갱신.
+  // Apps Script가 5~70초로 매우 느려 첫 화면 체감 속도를 위해 필수.
+  const [cachedSeed] = useState<Product[]>(() => getCachedProducts());
+  const { data: products = [], isLoading, isFetching } = useQuery({
     queryKey: ["products"],
     queryFn: listProducts,
     staleTime: 0,
+    ...(cachedSeed.length > 0
+      ? { initialData: cachedSeed, initialDataUpdatedAt: 0 }
+      : {}),
   });
 
   const [catFilter, setCatFilter] = useState<string>("전체");
@@ -265,6 +271,14 @@ export default function HomePage() {
 
       {/* 로딩 */}
       {isLoading && <HomeLoadingMascot />}
+
+      {/* 캐시를 보여주는 중 백그라운드 갱신 알림 */}
+      {!isLoading && isFetching && (
+        <div className="mb-3 flex items-center justify-center gap-2 rounded-xl bg-cuke/10 px-3 py-2 text-[12px] font-semibold text-cuke">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-cuke/30 border-t-cuke" />
+          최신 매물을 불러오는 중이에요 — 지금 보이는 건 이전 목록이에요
+        </div>
+      )}
 
       {/* ── 크게 보기 ── */}
       {!isLoading && viewMode === "large" && (
