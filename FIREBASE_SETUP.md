@@ -19,30 +19,58 @@
 
 ## 설정 순서 (반드시 이 순서대로)
 
-### 1) 서비스 계정 키 발급 — 가장 중요
+### 1) 서비스 계정 키 없이 서명 위임하기
 
-Firebase 콘솔 → **프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성**
-→ JSON 파일이 다운로드됩니다.
+조직 정책(`doridorimammam-org`)이 서비스 계정 **키 생성을 차단**하고 있습니다.
+그래서 키 파일을 내려받는 대신, **Google 의 IAM Credentials API 에 서명을 요청**하는
+방식을 씁니다. 키는 Google 이 계속 보관하므로 정책에 걸리지 않습니다.
 
-그 JSON 안에서 두 값을 꺼냅니다:
-- `client_email`
-- `private_key`
+서비스 계정 이메일은 콘솔에 표시된 값을 그대로 씁니다:
 
-### 2) 앱스크립트 스크립트 속성에 등록
+```
+firebase-adminsdk-fbsvc@g-market-94b03.iam.gserviceaccount.com
+```
 
-Apps Script 편집기 → ⚙️ 프로젝트 설정 → 스크립트 속성
+### 2) 실행 계정에 '서비스 계정 토큰 생성자' 역할 부여
+
+앱스크립트는 **배포한 본인 계정**으로 실행되므로, 그 계정이 위 서비스 계정을
+대신해 서명할 수 있어야 합니다.
+
+[Google Cloud 콘솔 → IAM 및 관리자 → 서비스 계정](https://console.cloud.google.com/iam-admin/serviceaccounts?project=g-market-94b03)
+
+1. `firebase-adminsdk-fbsvc@...` 클릭
+2. 상단 **권한** 탭 → **액세스 권한 부여**
+3. 새 주 구성원: **앱스크립트를 배포하는 본인 Google 계정**
+4. 역할: **서비스 계정 토큰 생성자** (`roles/iam.serviceAccountTokenCreator`)
+5. 저장
+
+> 이 역할이 없으면 서명 요청이 403 으로 거부됩니다.
+
+또한 프로젝트에서 **IAM Service Account Credentials API** 가 사용 설정되어 있어야 합니다.
+([사용 설정 링크](https://console.cloud.google.com/apis/library/iamcredentials.googleapis.com?project=g-market-94b03))
+
+### 3) 앱스크립트 설정
+
+**(a) 스크립트 속성** — ⚙️ 프로젝트 설정 → 스크립트 속성
 
 | 속성 | 값 |
 |---|---|
-| `FB_CLIENT_EMAIL` | JSON 의 `client_email` 값 |
-| `FB_PRIVATE_KEY` | JSON 의 `private_key` 값 **통째로** (`-----BEGIN PRIVATE KEY-----` 부터 끝까지, 줄바꿈 포함) |
+| `FB_SERVICE_ACCOUNT` | `firebase-adminsdk-fbsvc@g-market-94b03.iam.gserviceaccount.com` |
 
-> 이 두 값이 없으면 커스텀 토큰이 발급되지 않아 Firestore 접근이 전부 막힙니다.
+> 이전 안내의 `FB_CLIENT_EMAIL` / `FB_PRIVATE_KEY` 는 이제 필요 없습니다.
 
-### 3) Code.gs 재배포
+**(b) 매니페스트에 스코프 추가** — ⚙️ 프로젝트 설정 →
+"편집기에서 `appsscript.json` 매니페스트 파일 표시" 체크
+→ 편집기에 나타난 `appsscript.json` 을 저장소의 `appsscript.json` 내용으로 교체
 
-Code.gs 전체를 붙여넣고 **배포 관리 → 새 버전**으로 배포합니다.
-(커스텀 토큰 발급 함수가 이번에 추가됐습니다)
+`https://www.googleapis.com/auth/cloud-platform` 스코프가 있어야 서명 요청이 가능합니다.
+저장 후 **아무 함수나 한 번 실행해서 권한 재승인** 팝업을 통과시켜 주세요.
+
+**(c) 동작 확인** — 편집기에서 함수 목록 중 `testFirebaseToken` 선택 후 실행
+→ 실행 로그에 `✅ 성공` 이 뜨면 완료입니다.
+실패하면 로그에 원인(403 권한 / 스코프 미승인)이 함께 표시됩니다.
+
+**(d) Code.gs 재배포** — 배포 관리 → 새 버전
 
 ### 4) Netlify 환경변수 등록
 

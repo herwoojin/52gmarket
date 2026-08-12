@@ -809,32 +809,66 @@ function verifyOtp_(email, code) {
  *    FB_PRIVATE_KEY  : 서비스 계정 private_key (\n 포함 통째로)
  *  ========================================================= */
 function createFirebaseCustomToken_(uid) {
-  try {
-    var clientEmail = getProp_("FB_CLIENT_EMAIL");
-    var privateKey = getProp_("FB_PRIVATE_KEY");
-    if (!clientEmail || !privateKey) return null;  // 미설정 시 조용히 비활성화
-    privateKey = privateKey.replace(/\\n/g, "\n");
+  var saEmail = getProp_("FB_SERVICE_ACCOUNT");
+  if (!saEmail) return null;  // 미설정 시 조용히 비활성화 (Firebase 없이 동작)
 
-    var now = Math.floor(Date.now() / 1000);
-    var b64 = function (obj) {
-      return Utilities.base64EncodeWebSafe(JSON.stringify(obj)).replace(/=+$/, "");
-    };
-    var header = { alg: "RS256", typ: "JWT" };
-    var claims = {
-      iss: clientEmail,
-      sub: clientEmail,
-      aud: "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
-      iat: now,
-      exp: now + 3600,
-      uid: String(uid)
-    };
-    var toSign = b64(header) + "." + b64(claims);
-    var sig = Utilities.computeRsaSha256Signature(toSign, privateKey);
-    return toSign + "." + Utilities.base64EncodeWebSafe(sig).replace(/=+$/, "");
+  var now = Math.floor(Date.now() / 1000);
+  var claims = {
+    iss: saEmail,
+    sub: saEmail,
+    aud: "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+    iat: now,
+    exp: now + 3600,
+    uid: String(uid)
+  };
+
+  // 조직 정책으로 서비스 계정 키 파일을 만들 수 없으므로,
+  // 키를 내려받는 대신 IAM Credentials API 에 서명을 위임한다.
+  // 실행 계정에 해당 서비스 계정의 '서비스 계정 토큰 생성자' 역할이 필요하다.
+  try {
+    var url =
+      "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" +
+      encodeURIComponent(saEmail) + ":signJwt";
+    var resp = UrlFetchApp.fetch(url, {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
+      payload: JSON.stringify({ payload: JSON.stringify(claims) }),
+      muteHttpExceptions: true
+    });
+    var body = resp.getContentText();
+    var data = JSON.parse(body);
+    if (data && data.signedJwt) return data.signedJwt;
+    Logger.log("[Firebase] signJwt 실패 " + resp.getResponseCode() + ": " + body);
+    return null;
   } catch (e) {
-    return null;  // 토큰 발급 실패해도 로그인 자체는 진행
+    Logger.log("[Firebase] signJwt 예외: " + e);
+    return null;
   }
 }
+
+/**
+ * 커스텀 토큰 발급이 정상 동작하는지 확인하는 점검용 함수.
+ * Apps Script 편집기에서 이 함수를 선택해 실행한 뒤 '실행 로그'를 확인하세요.
+ */
+function testFirebaseToken() {
+  var sa = getProp_("FB_SERVICE_ACCOUNT");
+  if (!sa) {
+    Logger.log("❌ 스크립트 속성 FB_SERVICE_ACCOUNT 가 없습니다.");
+    return;
+  }
+  Logger.log("서비스 계정: " + sa);
+  var token = createFirebaseCustomToken_("test@gsretail.com");
+  if (token) {
+    Logger.log("✅ 성공 — 토큰 앞부분: " + token.substring(0, 40) + "...");
+    Logger.log("이제 앱에서 로그인하면 Firestore 에 접근할 수 있습니다.");
+  } else {
+    Logger.log("❌ 실패 — 위 로그의 signJwt 오류 메시지를 확인하세요.");
+    Logger.log("체크: ① 실행 계정에 '서비스 계정 토큰 생성자' 역할 부여했는지");
+    Logger.log("      ② appsscript.json 에 cloud-platform 스코프를 넣고 재승인했는지");
+  }
+}
+
 
 /* uid에 해당하는 모든 매물의 nick을 일괄 업데이트 */
 function updateNickForUser_(uid, nick) {
