@@ -8,6 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { restoreFirebaseSession, clearFirebaseSession } from "./firebase";
 
 export interface UserProfile {
   email: string;
@@ -44,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         setUser(JSON.parse(stored));
+        // 저장된 커스텀 토큰으로 Firebase 세션도 함께 복원
+        restoreFirebaseSession();
       }
     } catch {
       // 무시
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    clearFirebaseSession();
   }, []);
 
   const updateProfile = useCallback((patch: Partial<UserProfile>) => {

@@ -5,6 +5,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { createProduct, prependCachedProduct } from "@/lib/sheets";
+import { createProductFs } from "@/lib/productsFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 import { toWebp, formatBytes, savingsPercent } from "@/lib/webp";
 import { uploadPhoto } from "@/lib/storage";
 import { MAX_PHOTOS, joinPhotoUrls } from "@/lib/driveImage";
@@ -127,7 +129,9 @@ export default function UploadPage() {
         photoURL,
       };
 
-      const result = await createProduct(item);
+      const result = isFirebaseEnabled
+        ? await createProductFs(item)
+        : await createProduct(item);
       if (result.ok) {
         // 키워드 매칭 알림 체크 (로컬)
         const stored = localStorage.getItem("oiji-keywords");

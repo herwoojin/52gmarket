@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, isDemoMode } from "./firebase";
+import { storage, isFirebaseEnabled } from "./firebase";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
@@ -35,7 +35,7 @@ async function uploadToDrive(blob: Blob): Promise<string> {
 /** WEBP blob을 업로드하고 다운로드 URL 반환 */
 export async function uploadPhoto(blob: Blob, uid: string): Promise<string> {
   // Firebase Storage 사용
-  if (!isDemoMode && storage) {
+  if (isFirebaseEnabled && storage) {
     const storageRef = ref(storage, `listings/${uid}/${Date.now()}.webp`);
     await uploadBytes(storageRef, blob, { contentType: "image/webp" });
     return getDownloadURL(storageRef);

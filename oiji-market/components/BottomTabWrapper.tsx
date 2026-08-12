@@ -6,6 +6,9 @@ import { useNotifications } from "@/lib/notifications";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSellerChats, fetchChatReads, countUnreadRooms } from "@/lib/chat";
 import { useAuth } from "@/lib/auth";
+import { subscribeMyRooms, subscribeChatReads } from "@/lib/chatFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
+import type { SellerChatRoom } from "@/lib/chat";
 
 export default function BottomTabWrapper() {
   const { unreadCount } = useNotifications();
@@ -19,21 +22,35 @@ export default function BottomTabWrapper() {
     return () => clearTimeout(t);
   }, []);
 
-  const { data: sellerRooms = [] } = useQuery({
+  // Firebase 사용 시 실시간 구독 — 폴링이 없어 지연도 서버 부하도 없다
+  const [fsRooms, setFsRooms] = useState<SellerChatRoom[]>([]);
+  const [fsReads, setFsReads] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!isFirebaseEnabled || !user?.email) return;
+    const u1 = subscribeMyRooms(user.email, setFsRooms);
+    const u2 = subscribeChatReads(user.email, setFsReads);
+    return () => { if (u1) u1(); if (u2) u2(); };
+  }, [user?.email]);
+
+  const { data: polledRooms = [] } = useQuery({
     queryKey: ["sellerChats", user?.email],
     queryFn: () => fetchSellerChats(user?.email || ""),
-    enabled: !!user?.email && ready,
+    enabled: !!user?.email && ready && !isFirebaseEnabled,
     refetchInterval: 180_000,
     staleTime: 0,
   });
 
-  const { data: reads = {} } = useQuery({
+  const { data: polledReads = {} } = useQuery({
     queryKey: ["chatReads", user?.email],
     queryFn: () => fetchChatReads(user?.email || ""),
-    enabled: !!user?.email && ready,
+    enabled: !!user?.email && ready && !isFirebaseEnabled,
     refetchInterval: 180_000,
     staleTime: 0,
   });
+
+  const sellerRooms = isFirebaseEnabled ? fsRooms : polledRooms;
+  const reads = isFirebaseEnabled ? fsReads : polledReads;
 
   return <BottomTab notiBadge={unreadCount} chatBadge={countUnreadRooms(sellerRooms, reads)} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchSellerChats,
@@ -14,6 +14,8 @@ import ChatSheet from "@/components/ChatSheet";
 import type { Product } from "@/types";
 import { useAuth } from "@/lib/auth";
 import { MessageCircle, Loader2 } from "lucide-react";
+import { subscribeMyRooms, subscribeChatReads, markRoomReadFs } from "@/lib/chatFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 
 export default function ChatsPage() {
   const { user } = useAuth();
@@ -22,21 +24,36 @@ export default function ChatsPage() {
   // 읽음 상태를 리렌더 트리거하기 위한 로컬 카운터
   const [readTick, setReadTick] = useState(0);
 
-  const { data: rooms = [], isLoading } = useQuery({
+  // Firebase 사용 시 실시간 구독, 아니면 기존 Apps Script 폴링
+  const [fsRooms, setFsRooms] = useState<SellerChatRoom[] | null>(null);
+  const [fsReads, setFsReads] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!isFirebaseEnabled || !user?.email) return;
+    const u1 = subscribeMyRooms(user.email, setFsRooms);
+    const u2 = subscribeChatReads(user.email, setFsReads);
+    return () => { if (u1) u1(); if (u2) u2(); };
+  }, [user?.email]);
+
+  const { data: polledRooms = [], isLoading: polling } = useQuery({
     queryKey: ["sellerChats", user?.email],
     queryFn: () => fetchSellerChats(user?.email || ""),
-    enabled: !!user?.email,
+    enabled: !!user?.email && !isFirebaseEnabled,
     refetchInterval: 30_000,
     staleTime: 0,
   });
 
-  const { data: reads = {} } = useQuery({
+  const { data: polledReads = {} } = useQuery({
     queryKey: ["chatReads", user?.email],
     queryFn: () => fetchChatReads(user?.email || ""),
-    enabled: !!user?.email,
+    enabled: !!user?.email && !isFirebaseEnabled,
     refetchInterval: 30_000,
     staleTime: 0,
   });
+
+  const rooms = isFirebaseEnabled ? (fsRooms ?? []) : polledRooms;
+  const reads = isFirebaseEnabled ? fsReads : polledReads;
+  const isLoading = isFirebaseEnabled ? fsRooms === null : polling;
 
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
@@ -51,8 +68,12 @@ export default function ChatsPage() {
   const openRoom = (room: SellerChatRoom) => {
     setReadTick((t) => t + 1);
     setSelectedRoom(room);
+    if (isFirebaseEnabled) {
+      // 구독 중이라 별도 갱신 없이 즉시 반영된다
+      markRoomReadFs(user?.email || "", room.roomId);
+      return;
+    }
     markRoomReadRemote(user?.email || "", room.roomId).then(() => {
-      // 서버 반영 후 배지·목록 즉시 갱신
       queryClient.invalidateQueries({ queryKey: ["sellerChats"] });
       queryClient.invalidateQueries({ queryKey: ["chatReads"] });
     });

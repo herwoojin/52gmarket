@@ -14,6 +14,8 @@ import { CATEGORIES, DEALS, LOCATIONS } from "@/types";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { LayoutGrid, Grid3X3, Table2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { subscribeProducts, updateProductFs, removeProductFs } from "@/lib/productsFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 
 export default function HomePage() {
   const queryClient = useQueryClient();
@@ -21,14 +23,28 @@ export default function HomePage() {
   // 캐시된 매물이 있으면 즉시 보여주고 새 데이터는 백그라운드에서 갱신.
   // Apps Script가 5~70초로 매우 느려 첫 화면 체감 속도를 위해 필수.
   const [cachedSeed] = useState<Product[]>(() => getCachedProducts());
-  const { data: products = [], isLoading, isFetching } = useQuery({
+
+  // Firebase 사용 시: Firestore 실시간 구독 (다른 사람의 등록·수정이 즉시 반영)
+  const [fsProducts, setFsProducts] = useState<Product[] | null>(null);
+  useEffect(() => {
+    if (!isFirebaseEnabled) return;
+    const unsub = subscribeProducts(setFsProducts);
+    return () => { if (unsub) unsub(); };
+  }, []);
+
+  const { data: polled = [], isLoading: polledLoading, isFetching: polledFetching } = useQuery({
     queryKey: ["products"],
     queryFn: listProducts,
+    enabled: !isFirebaseEnabled,
     staleTime: 0,
     ...(cachedSeed.length > 0
       ? { initialData: cachedSeed, initialDataUpdatedAt: 0 }
       : {}),
   });
+
+  const products = isFirebaseEnabled ? (fsProducts ?? cachedSeed) : polled;
+  const isLoading = isFirebaseEnabled ? fsProducts === null && cachedSeed.length === 0 : polledLoading;
+  const isFetching = isFirebaseEnabled ? false : polledFetching;
 
   const [catFilter, setCatFilter] = useState<string>("전체");
   const [dealFilter, setDealFilter] = useState<string>("전체");
@@ -64,7 +80,7 @@ export default function HomePage() {
   const { data: lastModified = 0 } = useQuery({
     queryKey: ["ping"],
     queryFn: getLastModified,
-    enabled: !isFetching,
+    enabled: !isFirebaseEnabled && !isFetching,
     refetchInterval: 60_000,
     staleTime: 0,
     gcTime: 0,
@@ -123,14 +139,22 @@ export default function HomePage() {
   };
 
   const handleUpdate = async (id: string, patch: Partial<(typeof products)[0]>) => {
-    await updateProduct(id, patch);
-    queryClient.invalidateQueries({ queryKey: ["products"] });
+    if (isFirebaseEnabled) {
+      await updateProductFs(id, patch);   // 구독 중이라 화면은 즉시 갱신됨
+    } else {
+      await updateProduct(id, patch);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    }
     toast("🥒 매물을 수정했어요!");
   };
 
   const handleDelete = async (id: string) => {
-    await removeProduct(id);
-    queryClient.invalidateQueries({ queryKey: ["products"] });
+    if (isFirebaseEnabled) {
+      await removeProductFs(id);
+    } else {
+      await removeProduct(id);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    }
     setSelectedProduct(null);
     toast("매물을 삭제했어요");
   };
@@ -156,8 +180,12 @@ export default function HomePage() {
 
     // 2. 시트 카운터 업데이트 (음수 방지)
     const newJjim = Math.max(0, (product.jjim ?? 0) + (wasJjimed ? -1 : 1));
-    await updateProduct(id, { jjim: newJjim });
-    queryClient.invalidateQueries({ queryKey: ["products"] });
+    if (isFirebaseEnabled) {
+      await updateProductFs(id, { jjim: newJjim });
+    } else {
+      await updateProduct(id, { jjim: newJjim });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    }
   };
 
   const SortIcon = ({ col }: { col: string }) => {

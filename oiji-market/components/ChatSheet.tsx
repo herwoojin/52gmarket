@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { Product } from "@/types";
 import { X, Send, Loader2 } from "lucide-react";
 import { buildRoomId, fetchMessages, sendMessage, type ChatMsg } from "@/lib/chat";
+import { subscribeMessages, sendMessageFs } from "@/lib/chatFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 
 const QUICK_REPLIES = [
   "아직 가능할까요?",
@@ -52,7 +54,16 @@ export default function ChatSheet({
     const roomId = roomIdOverride ?? buildRoomId(product.id, product.uid, currentUid);
     roomIdRef.current = roomId;
 
-    // 첫 로드 — setState는 항상 콜백 안에서만 호출
+    // Firebase 사용 시: 실시간 구독 (폴링 없이 즉시 반영)
+    if (isFirebaseEnabled) {
+      const unsub = subscribeMessages(roomId, (msgs) => {
+        setMessages(msgs);
+        setLoading(false);
+      });
+      return () => { if (unsub) unsub(); };
+    }
+
+    // 폴백: 기존 Apps Script 폴링
     fetchMessages(roomId).then((msgs) => {
       setMessages(msgs);
       setLoading(false);
@@ -91,20 +102,34 @@ export default function ChatSheet({
       setMessages((prev) => [...prev, optimistic]);
 
       try {
-        await sendMessage(roomIdRef.current, {
-          senderUid: currentUid,
-          senderNick: currentNick,
-          text: text.trim(),
-        });
-        // 낙관적 메시지를 서버 응답으로 교체
-        fetchMessages(roomIdRef.current).then(setMessages);
+        if (isFirebaseEnabled) {
+          // 구독이 걸려 있어 전송 후 별도 재조회가 필요 없다
+          const parts = roomIdRef.current.split("__");
+          await sendMessageFs(
+            roomIdRef.current,
+            { senderUid: currentUid, senderNick: currentNick, text: text.trim() },
+            {
+              productId: product?.id ?? parts[0] ?? "",
+              productTitle: product?.title ?? "",
+              participants: parts.slice(1).filter(Boolean),
+            }
+          );
+        } else {
+          await sendMessage(roomIdRef.current, {
+            senderUid: currentUid,
+            senderNick: currentNick,
+            text: text.trim(),
+          });
+          // 낙관적 메시지를 서버 응답으로 교체
+          fetchMessages(roomIdRef.current).then(setMessages);
+        }
       } catch {
         // 낙관적 메시지 유지 (전송 실패 시 그대로 보임)
       } finally {
         setSending(false);
       }
     },
-    [currentUid, currentNick, sending]
+    [currentUid, currentNick, sending, product]
   );
 
   if (!isOpen || !product) return null;

@@ -789,7 +789,51 @@ function verifyOtp_(email, code) {
     return json_({ ok: false, error: "인증번호가 일치하지 않아요" });
 
   cache.remove("otp_" + email.toLowerCase());
-  return json_({ ok: true, email: email.toLowerCase() });
+  var uid = email.toLowerCase();
+  return json_({
+    ok: true,
+    email: uid,
+    firebaseToken: createFirebaseCustomToken_(uid)  // null 이면 프론트는 Firebase 없이 동작
+  });
+}
+
+/* =========================================================
+ *  Firebase 커스텀 토큰 발급
+ *  OTP 인증을 통과한 사용자만 Firestore 에 접근할 수 있도록,
+ *  서비스 계정으로 서명한 커스텀 토큰을 발급한다.
+ *  프론트는 이 토큰으로 signInWithCustomToken 을 호출하고,
+ *  Firestore 보안 규칙은 request.auth.uid 로 본인 데이터를 검증한다.
+ *
+ *  필요 스크립트 속성:
+ *    FB_CLIENT_EMAIL : 서비스 계정 이메일
+ *    FB_PRIVATE_KEY  : 서비스 계정 private_key (\n 포함 통째로)
+ *  ========================================================= */
+function createFirebaseCustomToken_(uid) {
+  try {
+    var clientEmail = getProp_("FB_CLIENT_EMAIL");
+    var privateKey = getProp_("FB_PRIVATE_KEY");
+    if (!clientEmail || !privateKey) return null;  // 미설정 시 조용히 비활성화
+    privateKey = privateKey.replace(/\\n/g, "\n");
+
+    var now = Math.floor(Date.now() / 1000);
+    var b64 = function (obj) {
+      return Utilities.base64EncodeWebSafe(JSON.stringify(obj)).replace(/=+$/, "");
+    };
+    var header = { alg: "RS256", typ: "JWT" };
+    var claims = {
+      iss: clientEmail,
+      sub: clientEmail,
+      aud: "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit",
+      iat: now,
+      exp: now + 3600,
+      uid: String(uid)
+    };
+    var toSign = b64(header) + "." + b64(claims);
+    var sig = Utilities.computeRsaSha256Signature(toSign, privateKey);
+    return toSign + "." + Utilities.base64EncodeWebSafe(sig).replace(/=+$/, "");
+  } catch (e) {
+    return null;  // 토큰 발급 실패해도 로그인 자체는 진행
+  }
 }
 
 /* uid에 해당하는 모든 매물의 nick을 일괄 업데이트 */

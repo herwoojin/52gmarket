@@ -7,6 +7,7 @@ import { Mail, KeyRound, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { ALLOWED_EMAIL_DOMAINS, isAllowedEmail, getCompanyName } from "@/types";
 import { fetchAppsScript } from "@/lib/appsScript";
+import { signInToFirebase } from "@/lib/firebase";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
@@ -122,6 +123,8 @@ export default function LoginPage() {
         code: fullCode,
       });
       if (res.ok) {
+        // 앱스크립트가 발급한 커스텀 토큰으로 Firebase 로그인 (실시간 데이터 접근용)
+        if (res.firebaseToken) await signInToFirebase(res.firebaseToken);
         signIn(res.email || email.trim().toLowerCase());
         toast("🥒 로그인 성공! 환영해요!");
         router.replace("/");
