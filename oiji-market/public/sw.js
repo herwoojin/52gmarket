@@ -38,9 +38,19 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // API 요청은 네트워크 우선
+  // API 요청은 네트워크 우선. 절대 캐시에 저장하지 않으므로 실패 시
+  // caches.match()는 항상 undefined를 반환 — respondWith에 undefined를 주면
+  // "Failed to convert value to 'Response'" 크래시가 나므로 항상 유효한
+  // Response로 감싸서 반환한다
   if (url.href.includes('script.google.com') || url.href.includes('firestore')) {
-    event.respondWith(fetch(req).catch(() => caches.match(req)));
+    event.respondWith(
+      fetch(req).catch(() =>
+        new Response(JSON.stringify({ ok: false, error: 'network' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
     return;
   }
 
@@ -54,7 +64,16 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
         })
-        .catch(() => caches.match(req).then((cached) => cached || caches.match('/')))
+        .catch(async () => {
+          const cached = (await caches.match(req)) || (await caches.match('/'));
+          return (
+            cached ||
+            new Response('<h1>오프라인</h1><p>네트워크 연결을 확인해주세요.</p>', {
+              status: 503,
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            })
+          );
+        })
     );
     return;
   }

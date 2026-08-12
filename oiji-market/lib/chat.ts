@@ -15,8 +15,15 @@ export function buildRoomId(productId: string, uid1: string, uid2: string): stri
   return `${productId}__${a}__${b}`;
 }
 
+/** uid가 비어 유효하지 않은 방(예: ...__undefined)은 서버 요청을 보내지 않는다 */
+function isValidRoomId(roomId: string): boolean {
+  if (!roomId) return false;
+  const parts = roomId.split("__");
+  return parts.length >= 3 && parts.every((p) => p && p !== "undefined" && p !== "null");
+}
+
 export async function fetchMessages(roomId: string): Promise<ChatMsg[]> {
-  if (isDemoMode) return [];
+  if (isDemoMode || !isValidRoomId(roomId)) return [];
   try {
     const res = await fetch(
       `${APPS_SCRIPT_URL}?action=chat&roomId=${encodeURIComponent(roomId)}`,
