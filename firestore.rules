@@ -83,6 +83,17 @@ service cloud.firestore {
         || (resource != null && isSelf(resource.data.uid));
     }
 
+    // ── 포인트 기록 ──
+    // 문서 id = productId (한 매물당 1회만 적립)
+    // 랭킹 집계를 위해 로그인한 직원은 모두 읽을 수 있다.
+    match /points/{productId} {
+      allow read: if signedIn();
+      // 본인 매물의 적립만 생성 가능
+      allow create: if isSelf(request.resource.data.uid);
+      // 한 번 적립된 포인트는 수정·삭제 불가 (매물이 삭제돼도 기록은 남는다)
+      allow update, delete: if false;
+    }
+
     // ── 키워드 알림 설정 ──
     match /keywords/{uid} {
       allow read, write: if isSelf(uid);

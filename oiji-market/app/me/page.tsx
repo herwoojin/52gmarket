@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { updateNickForUser } from "@/lib/sheets";
 import { fetchBankInfo, saveBankInfo, type BankInfo } from "@/lib/payment";
 import { fetchMyPoints, type PointRecord } from "@/lib/points";
+import { fetchMyPointsFs } from "@/lib/pointsFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 import { useTheme } from "@/lib/theme";
 import { LOCATIONS } from "@/types";
 import { LogOut, MapPin, Shield, Building2, User, Loader2, Landmark, Sparkles, FileText, Star } from "lucide-react";
@@ -55,7 +57,7 @@ export default function MePage() {
   useEffect(() => {
     if (!user?.email) return;
     fetchBankInfo(user.email).then((info) => { if (info) setBankInfo(info); });
-    fetchMyPoints(user.email).then(setPointRecords);
+    (isFirebaseEnabled ? fetchMyPointsFs(user.email) : fetchMyPoints(user.email)).then(setPointRecords);
   }, [user?.email]);
 
   if (!user) return null;

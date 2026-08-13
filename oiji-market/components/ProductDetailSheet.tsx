@@ -10,6 +10,8 @@ import { toWebp } from "@/lib/webp";
 import { loadDriveImg, parsePhotoUrls } from "@/lib/driveImage";
 import { confirmDeposit } from "@/lib/payment";
 import { buyerConfirmDeal } from "@/lib/points";
+import { recordPointsFs } from "@/lib/pointsFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 import { toast } from "sonner";
 
 interface ProductDetailSheetProps {
@@ -181,7 +183,8 @@ export default function ProductDetailSheet({
   const handleConfirmDeposit = async () => {
     setSaving(true);
     try {
-      await confirmDeposit(product.id);
+      if (isFirebaseEnabled) await recordPointsFs(product);
+      await confirmDeposit(product.id);   // 시트 기록(보조)
       await onUpdate?.(product.id, { status: "거래완료" });
       toast("✅ 입금 확인 완료! 거래가 성사됐어요.");
       onClose();
@@ -197,7 +200,8 @@ export default function ProductDetailSheet({
     if (!confirm("나눔을 완료 처리할까요? 매물이 '거래완료'로 바뀌고 포인트가 적립됩니다.")) return;
     setSaving(true);
     try {
-      await buyerConfirmDeal(product.id);  // 포인트 적립 + 시트 기록
+      if (isFirebaseEnabled) await recordPointsFs(product);
+      await buyerConfirmDeal(product.id);  // 시트 기록(보조)
       await onUpdate?.(product.id, { status: "거래완료" });
       toast("🎉 나눔 완료! 포인트가 적립됐어요.");
       onClose();

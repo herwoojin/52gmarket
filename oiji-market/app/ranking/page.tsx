@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Trophy, Crown, Star, Gift, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
 import { fetchRanking, setMonthlyNanumi, type UserStat } from "@/lib/ranking";
 import { fetchPointsRanking, type PointsRankStat } from "@/lib/points";
+import { fetchPointsRankingFs } from "@/lib/pointsFirestore";
+import { isFirebaseEnabled } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
@@ -57,7 +59,7 @@ export default function RankingPage() {
 
   const { data: pointsData, isLoading: pointsLoading } = useQuery<PointsRankStat[]>({
     queryKey: ["pointsRanking", period],
-    queryFn: () => fetchPointsRanking(period),
+    queryFn: () => (isFirebaseEnabled ? fetchPointsRankingFs(period) : fetchPointsRanking(period)),
     staleTime: 60_000,
   });
 
@@ -131,15 +133,15 @@ export default function RankingPage() {
         <div className="grid grid-cols-2 gap-2 text-center">
           <div className="rounded-xl bg-cuke/10 py-3">
             <p className="text-2xl font-extrabold text-cuke">+3점</p>
-            <p className="mt-0.5 text-[12px] text-muted">나눔 등록 1건</p>
+            <p className="mt-0.5 text-[12px] text-muted">나눔 거래완료 1건</p>
           </div>
           <div className="rounded-xl bg-pay/10 py-3">
             <p className="text-2xl font-extrabold text-pay">+2점</p>
-            <p className="mt-0.5 text-[12px] text-muted">판매 등록 1건</p>
+            <p className="mt-0.5 text-[12px] text-muted">판매 거래완료 1건</p>
           </div>
         </div>
         <p className="mt-2 text-center text-[11px] text-muted">
-          나눔·판매가 많을수록 높은 점수 — 거래완료 전도 카운트됩니다
+          거래완료 시 적립되며, 매물을 삭제해도 포인트는 그대로 남아요
         </p>
       </div>
 
