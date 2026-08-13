@@ -3,6 +3,9 @@ import {
   doc,
   addDoc,
   setDoc,
+  getDoc,
+  updateDoc,
+  increment,
   query,
   where,
   orderBy,
@@ -66,15 +69,16 @@ export async function sendMessageFs(
   const text = msg.text.trim();
   if (!text) return false;
 
-  await addDoc(collection(db, "rooms", roomId, "messages"), {
-    senderUid: msg.senderUid,
-    senderNick: msg.senderNick,
-    text,
-    createdAt: serverTimestamp(),
-  });
+  const roomRef = doc(db, "rooms", roomId);
+
+  // 대화방 문서를 먼저 만든다.
+  // 보안 규칙이 메시지 작성 권한을 '대화방의 participants' 로 판단하므로,
+  // 방이 없는 상태에서 메시지를 먼저 쓰면 첫 메시지가 항상 거부된다.
+  const snap = await getDoc(roomRef);
+  const isNewRoom = !snap.exists();
 
   await setDoc(
-    doc(db, "rooms", roomId),
+    roomRef,
     {
       roomId,
       productId: meta.productId,
@@ -87,6 +91,22 @@ export async function sendMessageFs(
     },
     { merge: true }
   );
+
+  await addDoc(collection(db, "rooms", roomId, "messages"), {
+    senderUid: msg.senderUid,
+    senderNick: msg.senderNick,
+    text,
+    createdAt: serverTimestamp(),
+  });
+
+  // 새 대화방이면 매물의 대화 수를 1 올린다 (카드에 표시되는 숫자)
+  if (isNewRoom && meta.productId) {
+    try {
+      await updateDoc(doc(db, "products", meta.productId), { chats: increment(1) });
+    } catch {
+      // 카운터 갱신 실패가 대화 자체를 막지는 않도록 무시
+    }
+  }
   return true;
 }
 

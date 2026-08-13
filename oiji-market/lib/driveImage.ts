@@ -1,12 +1,3 @@
-const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
-const _cache = new Map<string, string>();
-const _inFlight = new Map<string, Promise<string>>();
-
-const LS_PREFIX = "oiji-img-";
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 500;
-const MAX_CONCURRENT = 6;
-
 /** 매물 1건당 최대 사진 수 */
 export const MAX_PHOTOS = 3;
 
@@ -43,107 +34,22 @@ function extractFileId(url: string): string | null {
   return m ? m[1] : null;
 }
 
-function readLocalCache(id: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem(LS_PREFIX + id);
-  } catch {
-    return null;
-  }
-}
-
-function writeLocalCache(id: string, dataUrl: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(LS_PREFIX + id, dataUrl);
-  } catch {
-    // 용량 초과 등은 무시 — 이번 세션 메모리 캐시로만 동작
-  }
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// Apps Script 동시 호출이 몰리면 타임아웃/오류가 잦아져 동시 실행 수를 제한
-let activeCount = 0;
-const waitQueue: Array<() => void> = [];
-
-function acquireSlot(): Promise<void> {
-  if (activeCount < MAX_CONCURRENT) {
-    activeCount++;
-    return Promise.resolve();
-  }
-  return new Promise((resolve) => waitQueue.push(resolve));
-}
-
-function releaseSlot(): void {
-  activeCount--;
-  const next = waitQueue.shift();
-  if (next) {
-    activeCount++;
-    next();
-  }
-}
-
-async function fetchViaProxy(id: string): Promise<string> {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    await acquireSlot();
-    try {
-      const res = await fetch(`${APPS_SCRIPT_URL}?action=img&id=${id}`);
-      const data = await res.json();
-      if (data.ok && data.b64) {
-        return `data:${data.mime};base64,${data.b64}`;
-      }
-    } catch {
-      // 네트워크 오류 — 재시도
-    } finally {
-      releaseSlot();
-    }
-    if (attempt < MAX_RETRIES) await delay(RETRY_DELAY_MS * attempt);
-  }
-  return "";
-}
-
 /**
- * Drive URL을 Apps Script 프록시를 통해 base64 data URL로 변환.
- * CORS/CORP 이슈를 완전 우회. 메모리 + localStorage 이중 캐시로 재요청 방지,
- * 실패 시 자동 재시도, 동시 요청 수 제한으로 Apps Script 과부하 방지.
+ * 표시할 이미지 주소를 반환한다.
+ *
+ * Drive 사진은 /api/img 프록시를 거친다. 이 함수는 네트워크 요청 없이
+ * 주소만 즉시 만들어 주고, 실제 다운로드는 브라우저가 <img> 로 처리한다.
+ * (이전에는 이미지마다 fetch → base64 → data URL 변환을 거쳐 느렸다)
  */
-export async function loadDriveImg(rawUrl: string | undefined): Promise<string> {
+export function getImgSrc(rawUrl: string | undefined): string {
   const url = normalize(rawUrl);
   if (!url) return "";
-  if (_cache.has(url)) return _cache.get(url)!;
-
-  if (!url.includes("drive.google.com")) {
-    _cache.set(url, url);
-    return url;
-  }
-
+  if (!url.includes("drive.google.com")) return url;
   const id = extractFileId(url);
-  if (!id || !APPS_SCRIPT_URL) return "";
+  return id ? `/api/img?id=${encodeURIComponent(id)}` : "";
+}
 
-  const localHit = readLocalCache(id);
-  if (localHit) {
-    _cache.set(url, localHit);
-    return localHit;
-  }
-
-  if (_inFlight.has(url)) return _inFlight.get(url)!;
-
-  const promise = (async () => {
-    const src = await fetchViaProxy(id);
-    if (src) {
-      _cache.set(url, src);
-      writeLocalCache(id, src);
-    }
-    return src;
-  })();
-
-  _inFlight.set(url, promise);
-  try {
-    return await promise;
-  } finally {
-    _inFlight.delete(url);
-  }
+/** 기존 호출부 호환용 — 즉시 주소를 돌려준다 */
+export async function loadDriveImg(rawUrl: string | undefined): Promise<string> {
+  return getImgSrc(rawUrl);
 }

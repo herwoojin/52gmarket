@@ -50,8 +50,11 @@ service cloud.firestore {
       allow delete: if false;
 
       match /messages/{msgId} {
+        // 방 문서가 없을 때 get(...).data 접근은 규칙 평가 오류를 내므로
+        // exists() 로 먼저 확인한다 (앱은 방을 만든 뒤 메시지를 쓴다)
         function inRoom() {
           return signedIn()
+            && exists(/databases/$(database)/documents/rooms/$(roomId))
             && request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.participants;
         }
         allow read: if inRoom();
