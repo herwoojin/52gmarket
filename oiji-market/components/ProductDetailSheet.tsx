@@ -192,13 +192,14 @@ export default function ProductDetailSheet({
     }
   };
 
-  const handleBuyerConfirmDeal = async () => {
-    if (!confirm("거래가 완료됐나요? 판매자에게 포인트가 지급됩니다.")) return;
+  /** 나눔 완료 처리 — 물건 주인만 할 수 있다 */
+  const handleCompleteSharing = async () => {
+    if (!confirm("나눔을 완료 처리할까요? 매물이 '거래완료'로 바뀌고 포인트가 적립됩니다.")) return;
     setSaving(true);
     try {
-      await buyerConfirmDeal(product.id);
+      await buyerConfirmDeal(product.id);  // 포인트 적립 + 시트 기록
       await onUpdate?.(product.id, { status: "거래완료" });
-      toast("🎉 거래완료! 판매자에게 포인트가 지급됐어요.");
+      toast("🎉 나눔 완료! 포인트가 적립됐어요.");
       onClose();
     } catch {
       toast.error("오류가 발생했어요");
@@ -483,6 +484,16 @@ export default function ProductDetailSheet({
             </>
           ) : isOwner ? (
             <>
+              {isFree && !isDone ? (
+                <button
+                  onClick={handleCompleteSharing}
+                  disabled={saving}
+                  className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl bg-cuke text-[14px] font-extrabold text-skin-0 disabled:opacity-60"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : "🎁"}
+                  나눔 완료
+                </button>
+              ) : null}
               {isPending ? (
                 <button
                   onClick={handleConfirmDeposit}
@@ -536,16 +547,6 @@ export default function ProductDetailSheet({
                 <button onClick={() => onPay?.(product)}
                   className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-pay text-[15px] font-bold text-white hover:bg-pay/90">
                   <CreditCard size={18} /> 결제하기
-                </button>
-              )}
-              {isFree && !isDone && (
-                <button
-                  onClick={handleBuyerConfirmDeal}
-                  disabled={saving}
-                  className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-cuke text-[15px] font-bold text-skin-0 disabled:opacity-60"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : "🎁"}
-                  나눔 받았어요
                 </button>
               )}
             </>
