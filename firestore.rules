@@ -44,22 +44,33 @@ service cloud.firestore {
     // ── 대화방 ──
     // 참여자 본인만 읽고 쓸 수 있다
     match /rooms/{roomId} {
-      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      // 아직 만들어지지 않은 방(resource == null)은 조회를 허용한다.
+      // 대화를 처음 시작할 때 앱이 방 존재 여부를 확인해야 하고,
+      // 없는 문서에서는 유출될 정보 자체가 없다.
+      // 목록 조회 시에는 resource 가 항상 존재하므로 참여자 검사가 그대로 적용된다.
+      allow read: if signedIn()
+        && (resource == null || request.auth.uid in resource.data.participants);
       allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
       allow update: if signedIn() && request.auth.uid in resource.data.participants;
       allow delete: if false;
 
       match /messages/{msgId} {
-        // 방 문서가 없을 때 get(...).data 접근은 규칙 평가 오류를 내므로
-        // exists() 로 먼저 확인한다 (앱은 방을 만든 뒤 메시지를 쓴다)
-        function inRoom() {
-          return signedIn()
-            && exists(/databases/$(database)/documents/rooms/$(roomId))
-            && request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.participants;
+        function roomRef() {
+          return /databases/$(database)/documents/rooms/$(roomId);
         }
-        allow read: if inRoom();
-        // 발신자를 본인으로만 기록할 수 있다 (사칭 방지)
-        allow create: if inRoom() && isSelf(request.resource.data.senderUid);
+        function isParticipant() {
+          return signedIn()
+            && exists(roomRef())
+            && request.auth.uid in get(roomRef()).data.participants;
+        }
+
+        // 아직 방이 없으면 읽을 메시지도 없으므로 허용한다.
+        // (막으면 새 대화를 열 때 구독이 거부돼 화면이 로딩에서 멈춘다)
+        allow read: if signedIn() && (!exists(roomRef()) || isParticipant());
+
+        // 작성은 방이 존재하고 참여자일 때만. 발신자 사칭도 차단한다.
+        allow create: if isParticipant() && isSelf(request.resource.data.senderUid);
+
         // 보낸 메시지는 수정·삭제 불가
         allow update, delete: if false;
       }

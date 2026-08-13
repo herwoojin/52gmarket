@@ -55,7 +55,11 @@ export function subscribeMessages(
       });
       onChange(msgs);
     },
-    (err) => console.error("[chat] 구독 오류:", err)
+    (err) => {
+      // 구독이 거부돼도 화면이 로딩 상태로 멈추지 않도록 빈 목록으로 알린다
+      console.error("[chat] 구독 오류:", err);
+      onChange([]);
+    }
   );
 }
 
@@ -74,8 +78,14 @@ export async function sendMessageFs(
   // 대화방 문서를 먼저 만든다.
   // 보안 규칙이 메시지 작성 권한을 '대화방의 participants' 로 판단하므로,
   // 방이 없는 상태에서 메시지를 먼저 쓰면 첫 메시지가 항상 거부된다.
-  const snap = await getDoc(roomRef);
-  const isNewRoom = !snap.exists();
+  let isNewRoom = false;
+  try {
+    const snap = await getDoc(roomRef);
+    isNewRoom = !snap.exists();
+  } catch {
+    // 조회가 막혀도 setDoc(merge) 로 방 생성/갱신은 진행한다
+    isNewRoom = true;
+  }
 
   await setDoc(
     roomRef,
@@ -140,7 +150,10 @@ export function subscribeMyRooms(
       rooms.sort((a, b) => b.lastAt - a.lastAt);
       onChange(rooms);
     },
-    (err) => console.error("[chat] 방 목록 구독 오류:", err)
+    (err) => {
+      console.error("[chat] 방 목록 구독 오류:", err);
+      onChange([]);
+    }
   );
 }
 
@@ -161,7 +174,10 @@ export function subscribeChatReads(
       });
       onChange(reads);
     },
-    (err) => console.error("[chat] 읽음 구독 오류:", err)
+    (err) => {
+      console.error("[chat] 읽음 구독 오류:", err);
+      onChange({});
+    }
   );
 }
 
