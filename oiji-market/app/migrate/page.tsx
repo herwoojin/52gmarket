@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { listProducts } from "@/lib/sheets";
 import { fetchProductsOnce } from "@/lib/productsFirestore";
-import { db, isFirebaseEnabled } from "@/lib/firebase";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { db, auth, isFirebaseEnabled } from "@/lib/firebase";
+import { doc, setDoc, Timestamp, getDocs, collection } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { backfillPointsFs } from "@/lib/pointsFirestore";
 
@@ -19,6 +19,7 @@ export default function MigratePage() {
   const { user } = useAuth();
   const [running, setRunning] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [diagnosing, setDiagnosing] = useState(false);
   const [log, setLog] = useState<string[]>([]);
 
   const isAdmin = !!user && ADMIN_EMAILS.includes(user.email);
@@ -100,6 +101,53 @@ export default function MigratePage() {
     }
   };
 
+  /** 어디서 막혔는지 사실로 확인하기 위한 진단 */
+  const runDiagnosis = async () => {
+    setDiagnosing(true);
+    setLog([]);
+    try {
+      add("① Firebase 설정");
+      add(`   환경변수 적용: ${isFirebaseEnabled ? "예" : "아니오 (Netlify 변수 미반영)"}`);
+
+      add("② Firebase 로그인 상태");
+      const fbUser = auth?.currentUser;
+      if (fbUser) {
+        add(`   ✅ 로그인됨 — uid: ${fbUser.uid}`);
+        if (fbUser.uid !== user?.email) {
+          add(`   ⚠️ 앱 계정(${user?.email}) 과 uid 가 다릅니다`);
+        }
+      } else {
+        add("   ❌ 로그인 안 됨 — 커스텀 토큰이 발급되지 않았습니다.");
+        add("      이 상태에서는 모든 Firestore 읽기·쓰기가 차단됩니다.");
+        add("      앱스크립트 testFirebaseToken 이 성공하는지 먼저 확인하세요.");
+        add("      (확인 후 앱에서 로그아웃 → 다시 로그인해야 토큰이 발급됩니다)");
+      }
+
+      if (!db) { add("Firestore 미초기화"); return; }
+
+      add("③ 데이터 건수");
+      try {
+        const ps = await getDocs(collection(db, "products"));
+        const doneCount = ps.docs.filter((d) => d.data()?.status === "거래완료").length;
+        add(`   매물 ${ps.size}건 (그중 거래완료 ${doneCount}건)`);
+      } catch (e) {
+        add(`   ❌ 매물 조회 실패: ${String(e)}`);
+      }
+      try {
+        const pt = await getDocs(collection(db, "points"));
+        add(`   포인트 기록 ${pt.size}건`);
+        if (pt.size === 0) {
+          add("      → 아래 '포인트 소급 적립 실행' 을 눌러주세요");
+        }
+      } catch (e) {
+        add(`   ❌ 포인트 조회 실패: ${String(e)}`);
+        add("      규칙이 게시되지 않았거나 로그인이 안 된 상태입니다");
+      }
+    } finally {
+      setDiagnosing(false);
+    }
+  };
+
   if (!user) return <div className="p-6 text-[14px] text-muted">로그인이 필요해요.</div>;
   if (!isAdmin)
     return <div className="p-6 text-[14px] text-muted">관리자만 사용할 수 있는 페이지예요.</div>;
@@ -122,6 +170,22 @@ export default function MigratePage() {
       </button>
 
       <div className="mt-6 rounded-oiji border border-skin-line bg-skin-1 p-4">
+        <h3 className="mb-1 text-[15px] font-extrabold">🔎 진단</h3>
+        <p className="mb-3 text-[12px] leading-relaxed text-muted">
+          Firebase 로그인 상태와 실제 데이터 건수를 확인합니다.
+          집계가 비어 보일 때 원인을 먼저 파악하세요.
+        </p>
+        <button
+          onClick={runDiagnosis}
+          disabled={diagnosing}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-skin-line bg-skin-2 px-6 py-3.5 text-[14px] font-extrabold text-ink disabled:opacity-50"
+        >
+          {diagnosing ? <Loader2 size={16} className="animate-spin" /> : "🔎"}
+          {diagnosing ? "확인 중…" : "진단 실행"}
+        </button>
+      </div>
+
+      <div className="mt-4 rounded-oiji border border-skin-line bg-skin-1 p-4">
         <h3 className="mb-1 text-[15px] font-extrabold">포인트 소급 적립</h3>
         <p className="mb-3 text-[12px] leading-relaxed text-muted">
           이미 <b className="text-ink">거래완료</b>된 매물에 포인트를 뒤늦게 적립합니다.
