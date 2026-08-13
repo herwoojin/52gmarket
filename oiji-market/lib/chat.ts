@@ -45,6 +45,8 @@ export interface SellerChatRoom {
   lastMsg: string;
   lastAt: number;
   msgCount: number;
+  /** uid → 마지막으로 읽은 시각(ms). 상대의 읽음 여부 판정에도 쓰인다 */
+  reads?: Record<string, number>;
 }
 
 export async function fetchSellerChats(sellerUid: string): Promise<SellerChatRoom[]> {
@@ -108,8 +110,22 @@ export function getRoomLastRead(roomId: string, reads?: Record<string, number>):
   return Math.max(getLocalLastRead(roomId), reads?.[roomId] || 0);
 }
 
-export function countUnreadRooms(rooms: SellerChatRoom[], reads?: Record<string, number>): number {
-  return rooms.filter((r) => r.lastAt > getRoomLastRead(r.roomId, reads)).length;
+/** 내가 이 방에서 마지막으로 읽은 시각 (방 문서의 reads 맵 우선) */
+export function myLastReadOf(room: SellerChatRoom, myUid: string): number {
+  return Math.max(getLocalLastRead(room.roomId), room.reads?.[myUid] ?? 0);
+}
+
+/**
+ * 안읽은 대화방 수.
+ * 마지막 메시지가 내가 보낸 것이면 안읽음으로 세지 않는다.
+ */
+export function countUnreadRooms(rooms: SellerChatRoom[], reads?: Record<string, number>, myUid?: string): number {
+  return rooms.filter((r) => {
+    const lastRead = myUid
+      ? myLastReadOf(r, myUid)
+      : getRoomLastRead(r.roomId, reads);
+    return r.lastAt > lastRead;
+  }).length;
 }
 
 export async function sendMessage(

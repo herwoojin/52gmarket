@@ -145,6 +145,12 @@ export function subscribeMyRooms(
           lastMsg: String(v.lastMsg || ""),
           lastAt: tsToMillis(v.lastAt),
           msgCount: 0,
+          reads: (() => {
+            const raw = (v.reads || {}) as Record<string, unknown>;
+            const out: Record<string, number> = {};
+            Object.keys(raw).forEach((k) => { out[k] = tsToMillis(raw[k]); });
+            return out;
+          })(),
         };
       });
       rooms.sort((a, b) => b.lastAt - a.lastAt);
@@ -157,35 +163,39 @@ export function subscribeMyRooms(
   );
 }
 
-/** 읽음 상태 실시간 구독 (계정 기준, 기기 무관) */
-export function subscribeChatReads(
-  uid: string,
-  onChange: (reads: Record<string, number>) => void
-): Unsubscribe | null {
-  if (!isFirebaseEnabled || !db || !uid) return null;
-  const q = query(collection(db, "reads"), where("uid", "==", uid));
-  return onSnapshot(
-    q,
-    (snap) => {
-      const reads: Record<string, number> = {};
-      snap.docs.forEach((d) => {
-        const v = d.data();
-        reads[String(v.roomId)] = tsToMillis(v.lastReadAt);
-      });
-      onChange(reads);
-    },
-    (err) => {
-      console.error("[chat] 읽음 구독 오류:", err);
-      onChange({});
-    }
-  );
-}
-
+/**
+ * 읽음 시각을 대화방 문서 안(reads 맵)에 기록한다.
+ * 별도 컬렉션에 두면 보안 규칙상 본인 기록만 읽을 수 있어
+ * '상대가 읽었는지'를 알 수 없다. 방 문서는 양쪽 참여자가 모두 읽을 수 있다.
+ */
 export async function markRoomReadFs(uid: string, roomId: string): Promise<void> {
   if (!isFirebaseEnabled || !db || !uid || !roomId) return;
-  await setDoc(
-    doc(db, "reads", `${uid}__${roomId}`),
-    { uid, roomId, lastReadAt: serverTimestamp() },
-    { merge: true }
+  try {
+    await setDoc(
+      doc(db, "rooms", roomId),
+      { reads: { [uid]: serverTimestamp() } },
+      { merge: true }
+    );
+  } catch {
+    // 방이 아직 없으면 무시 (첫 메시지 전송 시 생성된다)
+  }
+}
+
+/** 대화방 한 곳을 구독 — 상대의 읽음 시각을 실시간으로 받기 위함 */
+export function subscribeRoom(
+  roomId: string,
+  onChange: (reads: Record<string, number>) => void
+): Unsubscribe | null {
+  if (!isFirebaseEnabled || !db || !roomId) return null;
+  return onSnapshot(
+    doc(db, "rooms", roomId),
+    (snap) => {
+      const v = snap.data();
+      const raw = (v?.reads || {}) as Record<string, unknown>;
+      const out: Record<string, number> = {};
+      Object.keys(raw).forEach((k) => { out[k] = tsToMillis(raw[k]); });
+      onChange(out);
+    },
+    () => onChange({})
   );
 }

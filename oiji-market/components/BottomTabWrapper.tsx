@@ -6,7 +6,7 @@ import { useNotifications } from "@/lib/notifications";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSellerChats, fetchChatReads, countUnreadRooms } from "@/lib/chat";
 import { useAuth } from "@/lib/auth";
-import { subscribeMyRooms, subscribeChatReads } from "@/lib/chatFirestore";
+import { subscribeMyRooms } from "@/lib/chatFirestore";
 import { isFirebaseEnabled } from "@/lib/firebase";
 import type { SellerChatRoom } from "@/lib/chat";
 
@@ -24,13 +24,11 @@ export default function BottomTabWrapper() {
 
   // Firebase 사용 시 실시간 구독 — 폴링이 없어 지연도 서버 부하도 없다
   const [fsRooms, setFsRooms] = useState<SellerChatRoom[]>([]);
-  const [fsReads, setFsReads] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!isFirebaseEnabled || !user?.email) return;
     const u1 = subscribeMyRooms(user.email, setFsRooms);
-    const u2 = subscribeChatReads(user.email, setFsReads);
-    return () => { if (u1) u1(); if (u2) u2(); };
+    return () => { if (u1) u1(); };
   }, [user?.email]);
 
   const { data: polledRooms = [] } = useQuery({
@@ -50,7 +48,7 @@ export default function BottomTabWrapper() {
   });
 
   const sellerRooms = isFirebaseEnabled ? fsRooms : polledRooms;
-  const reads = isFirebaseEnabled ? fsReads : polledReads;
+  const reads = isFirebaseEnabled ? {} : polledReads;
 
-  return <BottomTab notiBadge={unreadCount} chatBadge={countUnreadRooms(sellerRooms, reads)} />;
+  return <BottomTab notiBadge={unreadCount} chatBadge={countUnreadRooms(sellerRooms, reads, user?.email || "")} />;
 }

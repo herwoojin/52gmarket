@@ -7,6 +7,7 @@ import {
   fetchChatReads,
   markRoomReadRemote,
   getRoomLastRead,
+  myLastReadOf,
   type SellerChatRoom,
 } from "@/lib/chat";
 import { listProducts } from "@/lib/sheets";
@@ -14,7 +15,7 @@ import ChatSheet from "@/components/ChatSheet";
 import type { Product } from "@/types";
 import { useAuth } from "@/lib/auth";
 import { MessageCircle, Loader2 } from "lucide-react";
-import { subscribeMyRooms, subscribeChatReads, markRoomReadFs } from "@/lib/chatFirestore";
+import { subscribeMyRooms, markRoomReadFs } from "@/lib/chatFirestore";
 import { isFirebaseEnabled } from "@/lib/firebase";
 
 export default function ChatsPage() {
@@ -26,13 +27,11 @@ export default function ChatsPage() {
 
   // Firebase 사용 시 실시간 구독, 아니면 기존 Apps Script 폴링
   const [fsRooms, setFsRooms] = useState<SellerChatRoom[] | null>(null);
-  const [fsReads, setFsReads] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!isFirebaseEnabled || !user?.email) return;
     const u1 = subscribeMyRooms(user.email, setFsRooms);
-    const u2 = subscribeChatReads(user.email, setFsReads);
-    return () => { if (u1) u1(); if (u2) u2(); };
+    return () => { if (u1) u1(); };
   }, [user?.email]);
 
   const { data: polledRooms = [], isLoading: polling } = useQuery({
@@ -52,7 +51,7 @@ export default function ChatsPage() {
   });
 
   const rooms = isFirebaseEnabled ? (fsRooms ?? []) : polledRooms;
-  const reads = isFirebaseEnabled ? fsReads : polledReads;
+  const reads = isFirebaseEnabled ? {} : polledReads;
   const isLoading = isFirebaseEnabled ? fsRooms === null : polling;
 
   const { data: products = [] } = useQuery({
@@ -63,7 +62,10 @@ export default function ChatsPage() {
 
   if (!user) return null;
 
-  const isUnread = (room: SellerChatRoom) => room.lastAt > getRoomLastRead(room.roomId, reads);
+  const isUnread = (room: SellerChatRoom) =>
+    room.lastAt > (isFirebaseEnabled
+      ? myLastReadOf(room, user?.email || "")
+      : getRoomLastRead(room.roomId, reads));
 
   const openRoom = (room: SellerChatRoom) => {
     setReadTick((t) => t + 1);

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { Product } from "@/types";
 import { X, Send, Loader2 } from "lucide-react";
 import { buildRoomId, fetchMessages, sendMessage, type ChatMsg } from "@/lib/chat";
-import { subscribeMessages, sendMessageFs } from "@/lib/chatFirestore";
+import { subscribeMessages, sendMessageFs, subscribeRoom, markRoomReadFs } from "@/lib/chatFirestore";
 import { isFirebaseEnabled } from "@/lib/firebase";
 
 const QUICK_REPLIES = [
@@ -44,6 +44,7 @@ export default function ChatSheet({
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const roomIdRef = useRef<string>("");
   const optimisticCounter = useRef(0);
+  const [roomReads, setRoomReads] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!isOpen || !product) {
@@ -56,11 +57,18 @@ export default function ChatSheet({
 
     // Firebase 사용 시: 실시간 구독 (폴링 없이 즉시 반영)
     if (isFirebaseEnabled) {
-      const unsub = subscribeMessages(roomId, (msgs) => {
+      const unsubMsg = subscribeMessages(roomId, (msgs) => {
         setMessages(msgs);
         setLoading(false);
+        // 대화창이 열려 있는 동안 도착한 메시지는 바로 읽음 처리
+        markRoomReadFs(currentUid, roomId);
       });
-      return () => { if (unsub) unsub(); };
+      const unsubRoom = subscribeRoom(roomId, setRoomReads);
+      markRoomReadFs(currentUid, roomId);
+      return () => {
+        if (unsubMsg) unsubMsg();
+        if (unsubRoom) unsubRoom();
+      };
     }
 
     // 폴백: 기존 Apps Script 폴링
@@ -178,26 +186,77 @@ export default function ChatSheet({
               )}
             </div>
           ) : (
-            messages.map((msg) => {
+            messages.map((msg, i) => {
               const isMine = msg.senderUid === currentUid;
+              const prev = i > 0 ? messages[i - 1] : null;
+              const showDate =
+                msg.createdAt > 0 &&
+                (!prev ||
+                  prev.createdAt === 0 ||
+                  new Date(prev.createdAt).toDateString() !==
+                    new Date(msg.createdAt).toDateString());
+              // 상대가 이 메시지 시점 이후에 읽었으면 '읽음'
+              const readByOther =
+                isMine &&
+                msg.createdAt > 0 &&
+                Object.entries(roomReads).some(
+                  ([uid, at]) => uid !== currentUid && at >= msg.createdAt
+                );
+              const timeLabel =
+                msg.createdAt > 0
+                  ? new Date(msg.createdAt).toLocaleTimeString("ko-KR", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : "";
+
               return (
-                <div
-                  key={msg.id}
-                  className={`mb-3 flex ${isMine ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed ${
-                      isMine
-                        ? "rounded-br-lg bg-cuke text-skin-0"
-                        : "rounded-bl-lg bg-skin-2 text-ink"
-                    }`}
-                  >
-                    {!isMine && (
-                      <p className="mb-0.5 text-[11px] font-bold text-cuke-bright">
-                        @{msg.senderNick}
-                      </p>
+                <div key={msg.id}>
+                  {showDate && (
+                    <div className="my-3 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-skin-line" />
+                      <span className="rounded-full bg-skin-2 px-2.5 py-0.5 text-[11px] text-muted">
+                        {new Date(msg.createdAt).toLocaleDateString("ko-KR", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          weekday: "short",
+                        })}
+                      </span>
+                      <div className="h-px flex-1 bg-skin-line" />
+                    </div>
+                  )}
+
+                  <div className={`mb-3 flex items-end gap-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
+                    {isMine && (
+                      <div className="flex flex-col items-end justify-end pb-0.5">
+                        {readByOther && (
+                          <span className="text-[10px] font-bold leading-none text-cuke">읽음</span>
+                        )}
+                        {timeLabel && (
+                          <span className="mt-0.5 text-[10px] leading-none text-muted">{timeLabel}</span>
+                        )}
+                      </div>
                     )}
-                    {msg.text}
+
+                    <div
+                      className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed ${
+                        isMine
+                          ? "rounded-br-lg bg-cuke text-skin-0"
+                          : "rounded-bl-lg bg-skin-2 text-ink"
+                      }`}
+                    >
+                      {!isMine && (
+                        <p className="mb-0.5 text-[11px] font-bold text-cuke-bright">
+                          @{msg.senderNick}
+                        </p>
+                      )}
+                      {msg.text}
+                    </div>
+
+                    {!isMine && timeLabel && (
+                      <span className="pb-0.5 text-[10px] leading-none text-muted">{timeLabel}</span>
+                    )}
                   </div>
                 </div>
               );
