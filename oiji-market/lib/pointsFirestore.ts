@@ -127,18 +127,61 @@ export async function backfillPointsFs(
   return { added, skipped, failed };
 }
 
-/** 전체 포인트 기록 (내부용) */
+/**
+ * 집계용 포인트 기록 전체.
+ *
+ * points 컬렉션(영구 기록)을 기본으로 하되, 아직 적립 기록이 만들어지지
+ * 않은 '거래완료' 매물도 함께 계산한다. 이렇게 하면 소급 적립을 실행하지
+ * 않아도 랭킹이 정확히 나오고, 적립이 누락돼도 집계가 비지 않는다.
+ * (points 에 이미 있는 매물은 그쪽 기록을 우선한다)
+ */
 async function fetchAllPoints(): Promise<PointRecord[]> {
   if (!isFirebaseEnabled || !db) return [];
-  const snap = await getDocs(collection(db, "points"));
-  return snap.docs.map((d) => toRecord(d.id, d.data()));
+
+  const byProduct = new Map<string, PointRecord>();
+
+  try {
+    const snap = await getDocs(collection(db, "points"));
+    snap.docs.forEach((d) => byProduct.set(d.id, toRecord(d.id, d.data())));
+  } catch {
+    // 포인트 컬렉션을 못 읽어도 아래 매물 기준 집계는 시도한다
+  }
+
+  try {
+    const snap = await getDocs(collection(db, "products"));
+    snap.docs.forEach((d) => {
+      const v = d.data();
+      if (v?.status !== "거래완료" || byProduct.has(d.id)) return;
+      const isNanum = v.deal === "나눔";
+      const created =
+        v.createdAt instanceof Timestamp ? v.createdAt.toDate() : new Date();
+      byProduct.set(d.id, {
+        id: d.id,
+        uid: String(v.uid || ""),
+        nick: String(v.nick || "익명"),
+        type: isNanum ? "nanum" : "sale",
+        productId: d.id,
+        points: isNanum ? NANUM_POINTS : SALE_POINTS,
+        note: "거래완료",
+        createdAt: created.toISOString(),
+        year: created.getFullYear(),
+        month: created.getMonth() + 1,
+      });
+    });
+  } catch {
+    // 매물을 못 읽으면 points 기록만으로 집계
+  }
+
+  return Array.from(byProduct.values());
 }
 
 /** 내 포인트 이력 */
 export async function fetchMyPointsFs(uid: string): Promise<PointRecord[]> {
   if (!uid) return [];
   const all = await fetchAllPoints();
-  return all.filter((r) => r.uid === uid);
+  return all
+    .filter((r) => r.uid === uid)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 /** 기간별 포인트 랭킹 집계 */
