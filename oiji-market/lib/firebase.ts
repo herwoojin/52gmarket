@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, signInWithCustomToken, type Auth } from "firebase/auth";
+import { getAuth, signInWithCustomToken, onAuthStateChanged, type Auth } from "firebase/auth";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
@@ -36,6 +36,29 @@ if (isFirebaseEnabled) {
 }
 
 const TOKEN_KEY = "oiji-fb-token";
+
+let authReadyPromise: Promise<boolean> | null = null;
+
+/**
+ * Firebase 인증이 확정될 때까지 기다린다.
+ *
+ * 구독을 인증보다 먼저 걸면 보안 규칙에 막혀 실패하거나 빈 결과를 받는다.
+ * 첫 인증 상태 이벤트를 기다리고, 로그인돼 있지 않으면 저장된 토큰으로
+ * 복원을 한 번 시도한 뒤 결과를 알려준다.
+ */
+export function ensureFirebaseAuth(): Promise<boolean> {
+  if (!auth) return Promise.resolve(false);
+  if (authReadyPromise) return authReadyPromise;
+
+  authReadyPromise = new Promise<boolean>((resolve) => {
+    const unsub = onAuthStateChanged(auth!, async (u) => {
+      unsub();
+      if (u) return resolve(true);
+      resolve(await restoreFirebaseSession());
+    });
+  });
+  return authReadyPromise;
+}
 
 /**
  * OTP 인증 후 앱스크립트가 발급한 커스텀 토큰으로 Firebase 로그인.

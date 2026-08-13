@@ -11,7 +11,7 @@ import {
   getDocs,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db, isFirebaseEnabled } from "./firebase";
+import { db, isFirebaseEnabled, ensureFirebaseAuth } from "./firebase";
 import type { Product, NewProduct } from "@/types";
 
 /** Firestore 구조: products/{id} */
@@ -48,18 +48,36 @@ export function subscribeProducts(
   onChange: (items: Product[]) => void
 ): Unsubscribe | null {
   if (!isFirebaseEnabled || !db) return null;
-  const q = query(collection(db, "products"), where("status", "!=", "삭제"));
-  return onSnapshot(
-    q,
-    (snap) => {
-      const items = snap.docs.map((d) => toProduct(d.id, d.data()));
-      items.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      onChange(items);
-    },
-    (err) => console.error("[products] 구독 오류:", err)
-  );
+
+  let inner: Unsubscribe | null = null;
+  let cancelled = false;
+
+  // 인증이 끝난 뒤에 구독해야 보안 규칙에 막히지 않는다
+  ensureFirebaseAuth().then(() => {
+    if (cancelled || !db) return;
+    const q = query(collection(db, "products"), where("status", "!=", "삭제"));
+    inner = onSnapshot(
+      q,
+      { includeMetadataChanges: false },
+      (snap) => {
+        // Firestore 는 서버 응답 전에 로컬 캐시 기준 스냅샷을 먼저 준다.
+        // 그게 비어 있으면 화면에 남아 있던 목록을 지워버리므로 무시한다.
+        if (snap.metadata.fromCache && snap.empty) return;
+
+        const items = snap.docs.map((d) => toProduct(d.id, d.data()));
+        items.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        onChange(items);
+      },
+      (err) => console.error("[products] 구독 오류:", err)
+    );
+  });
+
+  return () => {
+    cancelled = true;
+    if (inner) inner();
+  };
 }
 
 /** 1회성 조회 (구독을 걸기 어려운 곳에서 사용) */

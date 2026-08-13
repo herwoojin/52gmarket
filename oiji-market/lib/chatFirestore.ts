@@ -14,7 +14,7 @@ import {
   Timestamp,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db, isFirebaseEnabled } from "./firebase";
+import { db, isFirebaseEnabled, ensureFirebaseAuth } from "./firebase";
 import type { ChatMsg, SellerChatRoom } from "./chat";
 
 /**
@@ -126,8 +126,13 @@ export function subscribeMyRooms(
   onChange: (rooms: SellerChatRoom[]) => void
 ): Unsubscribe | null {
   if (!isFirebaseEnabled || !db || !uid) return null;
-  const q = query(collection(db, "rooms"), where("participants", "array-contains", uid));
-  return onSnapshot(
+
+  let inner: Unsubscribe | null = null;
+  let cancelled = false;
+  ensureFirebaseAuth().then(() => {
+    if (cancelled || !db) return;
+    const q = query(collection(db, "rooms"), where("participants", "array-contains", uid));
+    inner = onSnapshot(
     q,
     (snap) => {
       const rooms: SellerChatRoom[] = snap.docs.map((d) => {
@@ -160,7 +165,13 @@ export function subscribeMyRooms(
       console.error("[chat] 방 목록 구독 오류:", err);
       onChange([]);
     }
-  );
+    );
+  });
+
+  return () => {
+    cancelled = true;
+    if (inner) inner();
+  };
 }
 
 /**

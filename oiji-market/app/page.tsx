@@ -43,6 +43,9 @@ export default function HomePage() {
   });
 
   const products = isFirebaseEnabled ? (fsProducts ?? cachedSeed) : polled;
+  // Firestore 는 비었는데 이전 캐시에는 매물이 있는 상태 = 이관이 안 된 것
+  const migrationLikelyMissing =
+    isFirebaseEnabled && fsProducts !== null && fsProducts.length === 0 && cachedSeed.length > 0;
   const isLoading = isFirebaseEnabled ? fsProducts === null && cachedSeed.length === 0 : polledLoading;
   const isFetching = isFirebaseEnabled ? false : polledFetching;
 
@@ -302,6 +305,16 @@ export default function HomePage() {
 
       {/* 로딩 */}
       {isLoading && <HomeLoadingMascot />}
+
+      {migrationLikelyMissing && (
+        <div className="mb-4 rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-[12px] leading-relaxed text-warn">
+          <b>매물 데이터가 아직 옮겨지지 않았어요.</b>
+          <br />
+          이전에 보던 목록은 이 기기에 남아 있던 캐시입니다. 관리자가
+          <code className="mx-1 rounded bg-black/20 px-1">/migrate</code>
+          에서 “이관 시작”을 한 번 실행하면 모든 기기에서 정상적으로 보입니다.
+        </div>
+      )}
 
       {/* 캐시를 보여주는 중 백그라운드 갱신 알림 */}
       {!isLoading && isFetching && (
