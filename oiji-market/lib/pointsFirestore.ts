@@ -68,6 +68,65 @@ function toRecord(id: string, v: any): PointRecord {
   };
 }
 
+/**
+ * 이미 거래완료된 매물에 대해 포인트를 소급 적립한다.
+ *
+ * 완료 시각을 따로 저장하지 않으므로 등록일(createdAt)을 기준 연·월로 쓴다.
+ * 문서 id 가 매물 id 라 여러 번 실행해도 중복 적립되지 않는다.
+ */
+export async function backfillPointsFs(
+  onLog?: (line: string) => void
+): Promise<{ added: number; skipped: number; failed: number }> {
+  const log = (l: string) => onLog?.(l);
+  if (!isFirebaseEnabled || !db) {
+    log("Firebase 설정이 없습니다.");
+    return { added: 0, skipped: 0, failed: 0 };
+  }
+
+  const snap = await getDocs(collection(db, "products"));
+  const done = snap.docs.filter((d) => d.data()?.status === "거래완료");
+  log(`거래완료 매물 ${done.length}건 확인`);
+
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const d of done) {
+    const v = d.data();
+    const ref = doc(db, "points", d.id);
+    try {
+      const cur = await getDoc(ref);
+      if (cur.exists()) {
+        skipped++;
+        continue;
+      }
+      const isNanum = v.deal === "나눔";
+      const created =
+        v.createdAt instanceof Timestamp ? v.createdAt.toDate() : new Date();
+      await setDoc(ref, {
+        uid: String(v.uid || ""),
+        nick: String(v.nick || "익명"),
+        type: isNanum ? "nanum" : "sale",
+        productId: d.id,
+        productTitle: String(v.title || ""),
+        points: isNanum ? NANUM_POINTS : SALE_POINTS,
+        note: "소급 적립",
+        createdAt: v.createdAt ?? serverTimestamp(),
+        year: created.getFullYear(),
+        month: created.getMonth() + 1,
+      });
+      added++;
+      log(`  + ${v.title || d.id} (${isNanum ? "나눔 3점" : "판매 2점"})`);
+    } catch (err) {
+      failed++;
+      log(`  ⚠️ ${v.title || d.id} 실패: ${String(err)}`);
+    }
+  }
+
+  log(`완료 — 신규 ${added}건 / 이미 적립됨 ${skipped}건 / 실패 ${failed}건`);
+  return { added, skipped, failed };
+}
+
 /** 전체 포인트 기록 (내부용) */
 async function fetchAllPoints(): Promise<PointRecord[]> {
   if (!isFirebaseEnabled || !db) return [];

@@ -7,6 +7,7 @@ import { fetchProductsOnce } from "@/lib/productsFirestore";
 import { db, isFirebaseEnabled } from "@/lib/firebase";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
+import { backfillPointsFs } from "@/lib/pointsFirestore";
 
 const ADMIN_EMAILS = ["herhero78@gmail.com", "woojin.her@gsretail.com"];
 
@@ -17,6 +18,7 @@ const ADMIN_EMAILS = ["herhero78@gmail.com", "woojin.her@gsretail.com"];
 export default function MigratePage() {
   const { user } = useAuth();
   const [running, setRunning] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [log, setLog] = useState<string[]>([]);
 
   const isAdmin = !!user && ADMIN_EMAILS.includes(user.email);
@@ -84,6 +86,20 @@ export default function MigratePage() {
     }
   };
 
+  const runBackfill = async () => {
+    setBackfilling(true);
+    setLog([]);
+    try {
+      add("이미 거래완료된 매물의 포인트를 소급 적립합니다…");
+      await backfillPointsFs(add);
+      add("내정보·랭킹 화면을 새로고침하면 반영된 점수가 보입니다.");
+    } catch (err) {
+      add(`❌ 오류: ${String(err)}`);
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   if (!user) return <div className="p-6 text-[14px] text-muted">로그인이 필요해요.</div>;
   if (!isAdmin)
     return <div className="p-6 text-[14px] text-muted">관리자만 사용할 수 있는 페이지예요.</div>;
@@ -104,6 +120,23 @@ export default function MigratePage() {
         {running ? <Loader2 size={18} className="animate-spin" /> : null}
         {running ? "이관 중…" : "이관 시작"}
       </button>
+
+      <div className="mt-6 rounded-oiji border border-skin-line bg-skin-1 p-4">
+        <h3 className="mb-1 text-[15px] font-extrabold">포인트 소급 적립</h3>
+        <p className="mb-3 text-[12px] leading-relaxed text-muted">
+          이미 <b className="text-ink">거래완료</b>된 매물에 포인트를 뒤늦게 적립합니다.
+          매물 1건당 한 번만 적립되므로 여러 번 눌러도 안전해요.
+          완료 시각이 따로 저장돼 있지 않아 <b className="text-ink">등록일</b>을 기준 연·월로 사용합니다.
+        </p>
+        <button
+          onClick={runBackfill}
+          disabled={backfilling}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-warn/50 bg-warn/10 px-6 py-3.5 text-[14px] font-extrabold text-warn disabled:opacity-50"
+        >
+          {backfilling ? <Loader2 size={16} className="animate-spin" /> : "⭐"}
+          {backfilling ? "적립 중…" : "포인트 소급 적립 실행"}
+        </button>
+      </div>
 
       {log.length > 0 && (
         <pre className="mt-5 whitespace-pre-wrap rounded-2xl border border-skin-line bg-skin-1 p-4 text-[12px] leading-relaxed text-ink">

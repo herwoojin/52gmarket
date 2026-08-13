@@ -88,8 +88,15 @@ service cloud.firestore {
     // 랭킹 집계를 위해 로그인한 직원은 모두 읽을 수 있다.
     match /points/{productId} {
       allow read: if signedIn();
-      // 본인 매물의 적립만 생성 가능
-      allow create: if isSelf(request.resource.data.uid);
+
+      // 적립 대상(uid)이 해당 매물의 실제 주인과 일치해야 한다.
+      // 본인 확인이 아니라 '매물 주인 확인'이라, 거래 상대나 관리자가
+      // 완료 처리·소급 적립을 해도 포인트는 항상 주인에게만 쌓인다.
+      allow create: if signedIn()
+        && exists(/databases/$(database)/documents/products/$(productId))
+        && request.resource.data.uid
+             == get(/databases/$(database)/documents/products/$(productId)).data.uid;
+
       // 한 번 적립된 포인트는 수정·삭제 불가 (매물이 삭제돼도 기록은 남는다)
       allow update, delete: if false;
     }
