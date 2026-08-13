@@ -51,7 +51,8 @@ export default function RankingPage() {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const currentMonthLabel = `${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월`;
 
-  const { data, isLoading, refetch } = useQuery({
+  // 이달의 GS나누미 선정 정보와 관리자 드롭다운용 (집계 자체는 포인트 기준)
+  const { data } = useQuery({
     queryKey: ["ranking"],
     queryFn: fetchRanking,
     staleTime: 60_000,
@@ -66,11 +67,11 @@ export default function RankingPage() {
   const ranking = data?.ranking ?? [];
   const monthly = data?.monthlyNanumi;
 
-  // 기간 탭에서는 포인트이력 기반, 전체 탭에서는 기존 products 기반
-  const activeRanking: UserStat[] = period === "all"
-    ? ranking
-    : (pointsData ?? []).map(p => ({ ...p }));
+  // 세 기간 모두 '거래완료 포인트' 기준으로 통일한다.
+  // (예전에는 전체 탭만 시트의 매물 등록 건수를 세어 기준이 서로 달랐다)
+  const activeRanking: UserStat[] = (pointsData ?? []).map((p) => ({ ...p }));
   const sorted = getSortedList(activeRanking, tab);
+  const recordCount = activeRanking.reduce((n, u) => n + u.total, 0);
 
   const handleSetNanumi = async () => {
     if (!selectedUid) { toast.error("수상자를 선택하세요"); return; }
@@ -161,6 +162,12 @@ export default function RankingPage() {
         ))}
       </div>
 
+      {!pointsLoading && recordCount > 0 && (
+        <p className="mb-3 text-center text-[11px] text-muted">
+          거래완료 {recordCount}건 집계
+        </p>
+      )}
+
       {/* ── 탭 ── */}
       <div className="mb-4 flex gap-2">
         {(["종합", "나눔왕", "판매왕"] as Tab[]).map((t) => (
@@ -177,15 +184,23 @@ export default function RankingPage() {
       </div>
 
       {/* ── 리더보드 ── */}
-      {(isLoading || (period !== "all" && pointsLoading)) ? (
+      {pointsLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 size={28} className="animate-spin text-cuke" />
         </div>
       ) : sorted.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <span className="text-5xl">🥒</span>
-          <p className="font-bold text-muted">아직 매물이 없어요</p>
-          <p className="text-[13px] text-muted">첫 번째 랭커가 돼보세요!</p>
+          <p className="font-bold text-muted">
+            {period === "month"
+              ? "이번 달 적립된 포인트가 없어요"
+              : period === "year"
+              ? `${new Date().getFullYear()}년 적립된 포인트가 없어요`
+              : "아직 적립된 포인트가 없어요"}
+          </p>
+          <p className="text-[13px] text-muted">
+            거래가 완료되면 판매자에게 포인트가 쌓여요
+          </p>
         </div>
       ) : (
         <div className="space-y-2.5">
