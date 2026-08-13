@@ -53,9 +53,11 @@ export default function HomePage() {
   const [dealFilter, setDealFilter] = useState<string>("전체");
   const [locFilter, setLocFilter] = useState<string>("전체");
   const [statusFilter, setStatusFilter] = useState<string>("판매중");
+  // 기본은 '작게 보기' — 한 화면에 더 많은 매물이 보여 훑기 좋다.
+  // 사용자가 직접 바꾼 적이 있으면 그 선택을 따른다.
   const [viewMode, setViewMode] = useState<"large" | "small" | "table">(() => {
-    if (typeof window === "undefined") return "large";
-    return (localStorage.getItem("oiji-view") as "large" | "small" | "table") || "large";
+    if (typeof window === "undefined") return "small";
+    return (localStorage.getItem("oiji-view") as "large" | "small" | "table") || "small";
   });
   const [sortCol, setSortCol] = useState("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");

@@ -9,7 +9,7 @@ import { createProductFs } from "@/lib/productsFirestore";
 import { isFirebaseEnabled } from "@/lib/firebase";
 import { toWebp, formatBytes, savingsPercent } from "@/lib/webp";
 import { uploadPhoto } from "@/lib/storage";
-import { MAX_PHOTOS, joinPhotoUrls } from "@/lib/driveImage";
+import { MAX_PHOTOS, joinPhotoUrls, getImgSrc } from "@/lib/driveImage";
 import { useNotifications } from "@/lib/notifications";
 import { CATEGORIES, LOCATIONS } from "@/types";
 import type { NewProduct, Notification, Product } from "@/types";
@@ -29,6 +29,8 @@ export default function UploadPage() {
   const [loc, setLoc] = useState(user?.loc || LOCATIONS[0]);
   const [desc, setDesc] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState("");
 
   // 사진 상태 — 최대 MAX_PHOTOS 장
   interface PhotoItem {
@@ -109,11 +111,25 @@ export default function UploadPage() {
     }
 
     setSubmitting(true);
+    // 사진 업로드(N) + 매물 등록(1) + 사진 표시 준비(N) 을 단계로 나눠
+    // 실제 완료된 작업 수로 진행률을 계산한다
+    const totalSteps = photos.length * 2 + 1;
+    let doneSteps = 0;
+    const step = (label: string) => {
+      doneSteps += 1;
+      setProgress(Math.round((doneSteps / totalSteps) * 100));
+      setProgressLabel(label);
+    };
+
     try {
+      setProgress(0);
+      setProgressLabel(photos.length > 0 ? "사진 업로드 준비 중…" : "매물 등록 중…");
+
       // 사진 여러 장을 순차 업로드해 쉼표로 이어 저장
       const uploaded: string[] = [];
-      for (const p of photos) {
-        uploaded.push(await uploadPhoto(p.webp, user?.email || "demo-user"));
+      for (let i = 0; i < photos.length; i++) {
+        uploaded.push(await uploadPhoto(photos[i].webp, user?.email || "demo-user"));
+        step(`사진 업로드 ${i + 1}/${photos.length}`);
       }
       const photoURL = joinPhotoUrls(uploaded);
 
@@ -132,6 +148,7 @@ export default function UploadPage() {
       const result = isFirebaseEnabled
         ? await createProductFs(item)
         : await createProduct(item);
+      step("매물 등록 완료");
       if (result.ok) {
         // 키워드 매칭 알림 체크 (로컬)
         const stored = localStorage.getItem("oiji-keywords");
@@ -169,6 +186,26 @@ export default function UploadPage() {
         queryClient.setQueryData<Product[]>(["products"], (prev) =>
           prev ? [optimistic, ...prev] : [optimistic]
         );
+        // 목록에 사진이 실제로 뜰 수 있을 때까지 미리 받아둔다.
+        // (여기까지 끝나야 홈으로 갔을 때 사진이 바로 보인다)
+        await Promise.all(
+          uploaded.map(
+            (u, i) =>
+              new Promise<void>((resolve) => {
+                const src = getImgSrc(u);
+                if (!src) { step(`사진 준비 ${i + 1}/${uploaded.length}`); return resolve(); }
+                const img = new Image();
+                const done = () => { step(`사진 준비 ${i + 1}/${uploaded.length}`); resolve(); };
+                img.onload = done;
+                img.onerror = done;          // 실패해도 등록은 끝난 상태라 진행
+                setTimeout(done, 20000);     // 지나치게 오래 걸리면 그냥 진행
+                img.src = src;
+              })
+          )
+        );
+
+        setProgress(100);
+        setProgressLabel("완료!");
         toast("🥒 매물을 올렸어요!");
         router.push("/");
       } else {
@@ -182,6 +219,8 @@ export default function UploadPage() {
       console.error(err);
     } finally {
       setSubmitting(false);
+      setProgress(0);
+      setProgressLabel("");
     }
   };
 
@@ -375,12 +414,29 @@ export default function UploadPage() {
       >
         {submitting ? (
           <span className="flex items-center justify-center gap-2">
-            <Loader2 size={18} className="animate-spin" /> 등록 중...
+            <Loader2 size={18} className="animate-spin" /> 등록 중… {progress}%
           </span>
         ) : (
           "🥒 매물 올리기"
         )}
       </button>
+
+      {submitting && (
+        <div className="mt-3">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-skin-2">
+            <div
+              className="h-full rounded-full bg-cuke transition-[width] duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-center text-[12px] text-muted">
+            {progressLabel}
+          </p>
+          <p className="mt-0.5 text-center text-[11px] text-muted">
+            사진이 목록에 바로 보이도록 준비하는 중이에요. 창을 닫지 말아주세요.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
