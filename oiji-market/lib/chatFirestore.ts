@@ -63,31 +63,32 @@ export function subscribeMessages(
   );
 }
 
-/** 메시지 전송 — 대화방 메타도 함께 갱신해 목록에서 바로 보이게 한다 */
-export async function sendMessageFs(
+/**
+ * 메시지 전송.
+ *
+ * 서버 응답을 기다리지 않는다. Firestore 는 쓰기를 로컬에 즉시 반영하고
+ * onSnapshot 이 곧바로 발화하므로, 기다리지 않아야 메시지가 지연 없이 뜬다.
+ * (이전에는 getDoc → setDoc → addDoc 을 순차로 await 해서 왕복이 3~4번 발생했다)
+ * 쓰기 순서는 SDK 가 보장하므로 방 생성 → 메시지 순서도 유지된다.
+ */
+export function sendMessageFs(
   roomId: string,
   msg: { senderUid: string; senderNick: string; text: string },
-  meta: { productId: string; productTitle: string; participants: string[] }
-): Promise<boolean> {
-  if (!isFirebaseEnabled || !db) return false;
+  meta: {
+    productId: string;
+    productTitle: string;
+    participants: string[];
+    isFirstMessage?: boolean;
+  }
+): void {
+  if (!isFirebaseEnabled || !db) return;
   const text = msg.text.trim();
-  if (!text) return false;
+  if (!text) return;
 
   const roomRef = doc(db, "rooms", roomId);
 
-  // 대화방 문서를 먼저 만든다.
-  // 보안 규칙이 메시지 작성 권한을 '대화방의 participants' 로 판단하므로,
-  // 방이 없는 상태에서 메시지를 먼저 쓰면 첫 메시지가 항상 거부된다.
-  let isNewRoom = false;
-  try {
-    const snap = await getDoc(roomRef);
-    isNewRoom = !snap.exists();
-  } catch {
-    // 조회가 막혀도 setDoc(merge) 로 방 생성/갱신은 진행한다
-    isNewRoom = true;
-  }
-
-  await setDoc(
+  // 방 메타 갱신 + 보낸 사람은 읽은 것으로 처리
+  setDoc(
     roomRef,
     {
       roomId,
@@ -98,26 +99,49 @@ export async function sendMessageFs(
       lastSenderUid: msg.senderUid,
       lastSenderNick: msg.senderNick,
       lastAt: serverTimestamp(),
+      reads: { [msg.senderUid]: serverTimestamp() },
     },
     { merge: true }
-  );
+  ).catch((e) => console.error("[chat] 방 갱신 실패:", e));
 
-  await addDoc(collection(db, "rooms", roomId, "messages"), {
+  addDoc(collection(db, "rooms", roomId, "messages"), {
     senderUid: msg.senderUid,
     senderNick: msg.senderNick,
     text,
     createdAt: serverTimestamp(),
-  });
+  }).catch((e) => console.error("[chat] 메시지 전송 실패:", e));
 
-  // 새 대화방이면 매물의 대화 수를 1 올린다 (카드에 표시되는 숫자)
-  if (isNewRoom && meta.productId) {
-    try {
-      await updateDoc(doc(db, "products", meta.productId), { chats: increment(1) });
-    } catch {
-      // 카운터 갱신 실패가 대화 자체를 막지는 않도록 무시
-    }
+  // 첫 메시지면 매물의 대화 수를 올린다 (화면에 이미 알고 있는 정보로 판단)
+  if (meta.isFirstMessage && meta.productId) {
+    updateDoc(doc(db, "products", meta.productId), { chats: increment(1) }).catch(
+      () => {}
+    );
   }
-  return true;
+
+  // 상대에게 푸시 알림 (앱스크립트가 OneSignal 키를 들고 대신 발송)
+  const other = meta.participants.find((p) => p && p !== msg.senderUid);
+  if (other) notifyChatPush(other, msg.senderNick, text, roomId);
+}
+
+const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
+
+/**
+ * 새 메시지 푸시 요청.
+ * OneSignal REST 키는 클라이언트에 둘 수 없으므로 앱스크립트를 경유한다.
+ * 채팅 속도에 영향을 주지 않도록 결과를 기다리지 않는다.
+ */
+function notifyChatPush(
+  toUid: string,
+  fromNick: string,
+  text: string,
+  roomId: string
+): void {
+  if (!APPS_SCRIPT_URL) return;
+  fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "pushChat", toUid, fromNick, text, roomId }),
+  }).catch(() => {});
 }
 
 /** 내가 참여한 대화방 목록 실시간 구독 */
@@ -149,6 +173,7 @@ export function subscribeMyRooms(
             String(v.lastSenderUid || "") !== uid ? String(v.lastSenderNick || "") : "",
           lastMsg: String(v.lastMsg || ""),
           lastAt: tsToMillis(v.lastAt),
+          lastSenderUid: String(v.lastSenderUid || ""),
           msgCount: 0,
           reads: (() => {
             const raw = (v.reads || {}) as Record<string, unknown>;

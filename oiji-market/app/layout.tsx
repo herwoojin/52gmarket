@@ -4,6 +4,7 @@ import { Providers } from "@/components/Providers";
 import AppShell from "@/components/AppShell";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import OneSignalInit from "@/components/OneSignalInit";
+import ChatWatcher from "@/components/ChatWatcher";
 
 export const metadata: Metadata = {
   title: "오이(52)지마켓",
@@ -34,6 +35,7 @@ export default function RootLayout({
         <Providers>
           <ServiceWorkerRegister />
           <OneSignalInit />
+          <ChatWatcher />
           <AppShell>{children}</AppShell>
         </Providers>
       </body>

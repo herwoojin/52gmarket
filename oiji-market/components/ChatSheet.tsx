@@ -111,15 +111,16 @@ export default function ChatSheet({
 
       try {
         if (isFirebaseEnabled) {
-          // 구독이 걸려 있어 전송 후 별도 재조회가 필요 없다
+          // Firestore 가 로컬에 즉시 반영 → 구독이 바로 발화하므로 기다리지 않는다
           const parts = roomIdRef.current.split("__");
-          await sendMessageFs(
+          sendMessageFs(
             roomIdRef.current,
             { senderUid: currentUid, senderNick: currentNick, text: text.trim() },
             {
               productId: product?.id ?? parts[0] ?? "",
               productTitle: product?.title ?? "",
               participants: parts.slice(1).filter(Boolean),
+              isFirstMessage: messages.length === 0,
             }
           );
         } else {
@@ -128,7 +129,6 @@ export default function ChatSheet({
             senderNick: currentNick,
             text: text.trim(),
           });
-          // 낙관적 메시지를 서버 응답으로 교체
           fetchMessages(roomIdRef.current).then(setMessages);
         }
       } catch {
@@ -137,12 +137,14 @@ export default function ChatSheet({
         setSending(false);
       }
     },
-    [currentUid, currentNick, sending, product]
+    [currentUid, currentNick, sending, product, messages.length]
   );
 
   if (!isOpen || !product) return null;
 
   const isSelf = !sellerView && product.uid === currentUid;
+  // 거래가 끝난 매물의 대화는 읽기 전용으로 둔다
+  const isClosed = product.status === "거래완료" || product.status === "삭제";
 
   return (
     <>
@@ -157,7 +159,14 @@ export default function ChatSheet({
             <h3 className="text-[15px] font-bold">
               {isSelf ? "내 매물" : `@${product.nick}`}
             </h3>
-            <p className="text-[12px] text-muted line-clamp-1">{product.title}</p>
+            <p className="flex items-center gap-1.5 text-[12px] text-muted">
+              {isClosed && (
+                <span className="shrink-0 rounded-md bg-neutral-600/70 px-1.5 py-0.5 text-[10px] font-bold text-neutral-200">
+                  {product.status === "삭제" ? "삭제된 매물" : "거래완료"}
+                </span>
+              )}
+              <span className="line-clamp-1">{product.title}</span>
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -266,7 +275,7 @@ export default function ChatSheet({
         </div>
 
         {/* 빠른 답장 */}
-        {!isSelf && (
+        {!isSelf && !isClosed && (
           <div className="flex gap-2 overflow-x-auto px-4 pb-2">
             {QUICK_REPLIES.map((reply) => (
               <button
@@ -286,7 +295,11 @@ export default function ChatSheet({
           className="flex gap-2 border-t border-skin-line px-4 py-3"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
         >
-          {isSelf ? (
+          {isClosed ? (
+            <p className="flex-1 py-3 text-center text-[13px] text-muted">
+              종료된 거래예요. 대화 내용은 계속 볼 수 있어요.
+            </p>
+          ) : isSelf ? (
             <p className="flex-1 py-3 text-center text-[13px] text-muted">
               본인 매물에는 채팅을 보낼 수 없어요
             </p>

@@ -673,6 +673,17 @@ function doPost(e) {
         setChatRead_(body.uid, body.roomId);
         result = json_({ ok: true });
         break;
+      case "pushChat":
+        // 새 채팅 알림 — OneSignal REST 키는 서버에만 두므로 여기서 대신 발송한다
+        if (!body.toUid) return json_({ ok: false, error: "invalid" });
+        sendOneSignalPush_(
+          [String(body.toUid)],
+          "💬 " + (body.fromNick || "새 메시지"),
+          String(body.text || "").slice(0, 120),
+          "/chats"
+        );
+        result = json_({ ok: true });
+        break;
       case "setKeywords":
         if (!body.uid) return json_({ ok: false, error: "invalid" });
         setKeywordsForUid_(body.uid, body.keywords || []);

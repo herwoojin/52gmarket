@@ -47,6 +47,8 @@ export interface SellerChatRoom {
   msgCount: number;
   /** uid → 마지막으로 읽은 시각(ms). 상대의 읽음 여부 판정에도 쓰인다 */
   reads?: Record<string, number>;
+  /** 마지막 메시지를 보낸 사람 (알림 대상 판정용) */
+  lastSenderUid?: string;
 }
 
 export async function fetchSellerChats(sellerUid: string): Promise<SellerChatRoom[]> {
