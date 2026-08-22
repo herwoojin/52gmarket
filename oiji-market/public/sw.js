@@ -1,7 +1,7 @@
 // OneSignal 푸시 수신·클릭 처리를 이 커스텀 SW에 병합
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-const CACHE_NAME = 'oiji-market-v2';
+const CACHE_NAME = 'oiji-market-v3';
 const SHELL_URLS = [
   '/',
   '/jar',
@@ -69,8 +69,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 나머지(해시된 JS/CSS 등)는 캐시 우선
+  // 나머지(해시된 JS/CSS 등)는 캐시 우선.
+  // 네트워크까지 실패하면 반드시 Response 를 돌려줘야 한다.
+  // (그냥 두면 미처리 Promise 거부로 콘솔에 'Failed to fetch' 가 남는다)
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).catch(
+        () => cached || new Response('', { status: 504, statusText: 'offline' })
+      );
+    })
   );
 });

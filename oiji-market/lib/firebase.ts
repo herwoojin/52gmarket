@@ -36,6 +36,9 @@ if (isFirebaseEnabled) {
 }
 
 const TOKEN_KEY = "oiji-fb-token";
+const TOKEN_AT_KEY = "oiji-fb-token-at";
+/** 커스텀 토큰 유효시간은 1시간. 여유를 두고 50분까지만 재사용한다 */
+const TOKEN_MAX_AGE_MS = 50 * 60 * 1000;
 
 let authReadyPromise: Promise<boolean> | null = null;
 
@@ -69,6 +72,7 @@ export async function signInToFirebase(customToken: string): Promise<boolean> {
   try {
     await signInWithCustomToken(auth, customToken);
     localStorage.setItem(TOKEN_KEY, customToken);
+    localStorage.setItem(TOKEN_AT_KEY, String(Date.now()));
     return true;
   } catch (err) {
     console.error("[Firebase] 커스텀 토큰 로그인 실패:", err);
@@ -82,18 +86,30 @@ export async function restoreFirebaseSession(): Promise<boolean> {
   if (auth.currentUser) return true;
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
   if (!token) return false;
+
+  // 만료된 토큰으로 로그인하면 400 이 떨어진다. 오래됐으면 쓰지 않는다.
+  const issuedAt = Number(localStorage.getItem(TOKEN_AT_KEY) || 0);
+  if (!issuedAt || Date.now() - issuedAt > TOKEN_MAX_AGE_MS) {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_AT_KEY);
+    return false;
+  }
   try {
     await signInWithCustomToken(auth, token);
     return true;
   } catch {
     // 만료된 토큰 — 재로그인이 필요하다
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_AT_KEY);
     return false;
   }
 }
 
 export function clearFirebaseSession(): void {
-  if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_AT_KEY);
+  }
   auth?.signOut().catch(() => {});
 }
 
