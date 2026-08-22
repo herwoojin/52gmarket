@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import type { Product } from "@/types";
 import { Heart, MapPin, MessageCircle, Pencil } from "lucide-react";
-import { loadDriveImg, parsePhotoUrls } from "@/lib/driveImage";
+import { parsePhotoUrls } from "@/lib/driveImage";
+import ProductImage from "@/components/ProductImage";
 
 interface ProductCardProps {
   product: Product;
@@ -25,18 +25,12 @@ export default function ProductCard({
   onEditClick,
 }: ProductCardProps) {
   const isSmall = variant === "small";
-  const [imgSrc, setImgSrc] = useState("");
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
   const isOwner = !!currentUid && product.uid === currentUid;
 
-  useEffect(() => {
-    let cancelled = false;
-    loadDriveImg(parsePhotoUrls(product.photoURL)[0]).then(src => { if (!cancelled) setImgSrc(src); });
-    return () => { cancelled = true; };
-  }, [product.photoURL]);
 
-  const showImg = !!imgSrc;
+
 
   return (
     <article
@@ -49,33 +43,16 @@ export default function ProductCard({
     >
       {/* 썸네일 */}
       <div className="relative aspect-square overflow-hidden bg-skin-2">
-        {showImg ? (
-          <img
-            src={imgSrc}
-            alt={product.title}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-4xl opacity-40">
-            🥒
-          </div>
-        )}
-
-        {/* 배지 */}
-        {isDone ? (
-          <span className="absolute left-2.5 top-2.5 rounded-lg bg-neutral-600/80 px-2.5 py-1 text-[11px] font-extrabold text-neutral-200">
-            거래완료
-          </span>
-        ) : isFree ? (
-          <span className="absolute left-2.5 top-2.5 rounded-lg bg-warn px-2.5 py-1 text-[11px] font-extrabold text-amber-900">
-            무료나눔
-          </span>
-        ) : (
-          <span className="absolute left-2.5 top-2.5 rounded-lg border border-cuke bg-skin-0/80 px-2.5 py-1 text-[11px] font-extrabold text-flesh">
-            판매
-          </span>
-        )}
+        <ProductImage
+          url={parsePhotoUrls(product.photoURL)[0]}
+          alt={product.title}
+          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center text-4xl opacity-40">
+              🥒
+            </div>
+          }
+        />
 
         {/* 사진 장수 배지 */}
         {parsePhotoUrls(product.photoURL).length > 1 && (

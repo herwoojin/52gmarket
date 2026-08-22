@@ -128,7 +128,14 @@ export default function UploadPage() {
       // 사진 여러 장을 순차 업로드해 쉼표로 이어 저장
       const uploaded: string[] = [];
       for (let i = 0; i < photos.length; i++) {
-        uploaded.push(await uploadPhoto(photos[i].webp, user?.email || "demo-user"));
+        try {
+          uploaded.push(await uploadPhoto(photos[i].webp, user?.email || "demo-user"));
+        } catch (err) {
+          console.error("[upload] 사진 업로드 실패:", err);
+          throw new Error(
+            `${i + 1}번째 사진 업로드에 실패했어요. 잠시 후 다시 시도해주세요.`
+          );
+        }
         step(`사진 업로드 ${i + 1}/${photos.length}`);
       }
       const photoURL = joinPhotoUrls(uploaded);
@@ -215,7 +222,8 @@ export default function UploadPage() {
           : `등록 실패: ${msg || "알 수 없는 오류"}`);
       }
     } catch (err) {
-      toast.error("등록에 실패했어요. 다시 시도해주세요.");
+      const msg = err instanceof Error ? err.message : "";
+      toast.error(msg || "등록에 실패했어요. 다시 시도해주세요.");
       console.error(err);
     } finally {
       setSubmitting(false);

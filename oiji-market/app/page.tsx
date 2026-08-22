@@ -9,6 +9,7 @@ import ProductDetailSheet from "@/components/ProductDetailSheet";
 import ChatSheet from "@/components/ChatSheet";
 import PaymentSheet from "@/components/PaymentSheet";
 import HomeLoadingMascot from "@/components/HomeLoadingMascot";
+import ImageLoadingOverlay from "@/components/ImageLoadingOverlay";
 import type { Product } from "@/types";
 import { CATEGORIES, DEALS, LOCATIONS } from "@/types";
 import { toast } from "sonner";
@@ -307,6 +308,9 @@ export default function HomePage() {
 
       {/* 로딩 */}
       {isLoading && <HomeLoadingMascot />}
+
+      {/* 사진이 다 뜰 때까지 덮어준다 (사진은 뒤에서 자동 재시도된다) */}
+      <ImageLoadingOverlay active={!isLoading && sorted.length > 0} />
 
       {migrationLikelyMissing && (
         <div className="mb-4 rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-[12px] leading-relaxed text-warn">

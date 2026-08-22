@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, isFirebaseStorageEnabled } from "./firebase";
+import { fetchAppsScript } from "./appsScript";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
 
@@ -17,7 +18,9 @@ async function uploadToDrive(blob: Blob): Promise<string> {
   const dataUrl = await blobToBase64(blob);
   const base64 = dataUrl.split(",")[1];
 
-  const res = await fetch(APPS_SCRIPT_URL, {
+  // 앱스크립트는 간헐적으로 실패한다(실측 40%). 사진을 여러 장 올리면
+  // 한 장만 실패해도 등록 전체가 실패하므로 재시도 래퍼를 쓴다.
+  const res = await fetchAppsScript(APPS_SCRIPT_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({

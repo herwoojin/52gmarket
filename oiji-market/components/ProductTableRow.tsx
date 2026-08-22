@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import type { Product } from "@/types";
 import { Heart, Pencil } from "lucide-react";
-import { loadDriveImg, parsePhotoUrls } from "@/lib/driveImage";
+import { parsePhotoUrls } from "@/lib/driveImage";
+import ProductImage from "@/components/ProductImage";
 
 interface Props {
   product: Product;
@@ -15,17 +15,12 @@ interface Props {
 }
 
 export default function ProductTableRow({ product, isJjimed, currentUid, onJjimToggle, onClick, onEditClick }: Props) {
-  const [imgSrc, setImgSrc] = useState("");
   const isFree = product.deal === "나눔";
   const isDone = product.status === "거래완료";
   const isPending = product.status === "입금대기";
   const isOwner = !!currentUid && product.uid === currentUid;
 
-  useEffect(() => {
-    let cancelled = false;
-    loadDriveImg(parsePhotoUrls(product.photoURL)[0]).then(src => { if (!cancelled) setImgSrc(src); });
-    return () => { cancelled = true; };
-  }, [product.photoURL]);
+
 
   const statusBadge = isDone
     ? <span className="rounded-md bg-neutral-600/70 px-2 py-0.5 text-[10px] font-bold text-neutral-200">거래완료</span>
@@ -41,10 +36,14 @@ export default function ProductTableRow({ product, isJjimed, currentUid, onJjimT
       {/* 썸네일 */}
       <td className="w-12 px-3 py-2">
         <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-skin-2">
-          {imgSrc
-            ? <img src={imgSrc} alt={product.title} className="h-full w-full object-cover" loading="lazy" />
-            : <div className="flex h-full w-full items-center justify-center text-lg opacity-30">🥒</div>
-          }
+          <ProductImage
+            url={parsePhotoUrls(product.photoURL)[0]}
+            alt={product.title}
+            className="h-full w-full object-cover"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center text-lg opacity-30">🥒</div>
+            }
+          />
         </div>
       </td>
       {/* 제목 */}
