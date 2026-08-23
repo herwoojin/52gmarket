@@ -175,6 +175,12 @@ export function subscribeMyRooms(
           lastAt: tsToMillis(v.lastAt),
           lastSenderUid: String(v.lastSenderUid || ""),
           msgCount: 0,
+          hiddenAt: (() => {
+            const raw = (v.hiddenAt || {}) as Record<string, unknown>;
+            const out: Record<string, number> = {};
+            Object.keys(raw).forEach((k) => { out[k] = tsToMillis(raw[k]); });
+            return out;
+          })(),
           reads: (() => {
             const raw = (v.reads || {}) as Record<string, unknown>;
             const out: Record<string, number> = {};
@@ -215,6 +221,19 @@ export async function markRoomReadFs(uid: string, roomId: string): Promise<void>
   } catch {
     // 방이 아직 없으면 무시 (첫 메시지 전송 시 생성된다)
   }
+}
+
+/**
+ * 내 목록에서만 대화를 숨긴다 (상대방 목록에는 그대로 남는다).
+ * 이후 새 메시지가 오면 lastAt 이 숨긴 시각보다 커져 자동으로 다시 나타난다.
+ */
+export async function hideRoomFs(uid: string, roomId: string): Promise<void> {
+  if (!isFirebaseEnabled || !db || !uid || !roomId) return;
+  await setDoc(
+    doc(db, "rooms", roomId),
+    { hiddenAt: { [uid]: serverTimestamp() } },
+    { merge: true }
+  );
 }
 
 /** 대화방 한 곳을 구독 — 상대의 읽음 시각을 실시간으로 받기 위함 */

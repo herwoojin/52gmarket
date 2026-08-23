@@ -49,6 +49,8 @@ export interface SellerChatRoom {
   reads?: Record<string, number>;
   /** 마지막 메시지를 보낸 사람 (알림 대상 판정용) */
   lastSenderUid?: string;
+  /** uid → 이 시점까지의 대화를 목록에서 숨김. 이후 새 메시지가 오면 다시 나타난다 */
+  hiddenAt?: Record<string, number>;
 }
 
 export async function fetchSellerChats(sellerUid: string): Promise<SellerChatRoom[]> {

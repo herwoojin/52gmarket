@@ -14,8 +14,8 @@ import { listProducts } from "@/lib/sheets";
 import ChatSheet from "@/components/ChatSheet";
 import type { Product } from "@/types";
 import { useAuth } from "@/lib/auth";
-import { MessageCircle, Loader2 } from "lucide-react";
-import { subscribeMyRooms, markRoomReadFs } from "@/lib/chatFirestore";
+import { MessageCircle, Loader2, X, EyeOff } from "lucide-react";
+import { subscribeMyRooms, markRoomReadFs, hideRoomFs } from "@/lib/chatFirestore";
 import { subscribeProducts } from "@/lib/productsFirestore";
 import { isFirebaseEnabled } from "@/lib/firebase";
 
@@ -25,6 +25,17 @@ export default function ChatsPage() {
   const [selectedRoom, setSelectedRoom] = useState<SellerChatRoom | null>(null);
   // 읽음 상태를 리렌더 트리거하기 위한 로컬 카운터
   const [readTick, setReadTick] = useState(0);
+  // 거래완료된 대화 숨기기 (기기별 설정)
+  const [hideClosed, setHideClosed] = useState(false);
+  useEffect(() => {
+    setHideClosed(localStorage.getItem("oiji-chat-hide-closed") === "1");
+  }, []);
+  const toggleHideClosed = () => {
+    setHideClosed((v) => {
+      localStorage.setItem("oiji-chat-hide-closed", v ? "0" : "1");
+      return !v;
+    });
+  };
 
   // Firebase 사용 시 실시간 구독, 아니면 기존 Apps Script 폴링
   const [fsRooms, setFsRooms] = useState<SellerChatRoom[] | null>(null);
@@ -101,6 +112,16 @@ export default function ChatsPage() {
     });
   };
 
+  /** 내 목록에서만 대화를 지운다 (상대방에게는 그대로 남는다) */
+  const hideRoom = async (room: SellerChatRoom) => {
+    if (!confirm("이 대화를 목록에서 지울까요?\n상대방 목록에는 그대로 남고, 새 메시지가 오면 다시 나타나요.")) return;
+    try {
+      await hideRoomFs(user?.email || "", room.roomId);
+    } catch {
+      // 구독이 갱신되지 않아도 다음 로드에 반영된다
+    }
+  };
+
   const getProduct = (room: SellerChatRoom): Product => {
     const found = products.find((p) => p.id === room.productId);
     if (found) return found;
@@ -124,7 +145,20 @@ export default function ChatsPage() {
 
   return (
     <div className="animate-fade-in px-4 pt-5 pb-2">
-      <h2 className="mb-5 text-xl font-extrabold tracking-tight">받은 채팅</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-extrabold tracking-tight">받은 채팅</h2>
+        <button
+          onClick={toggleHideClosed}
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold transition-colors ${
+            hideClosed
+              ? "border-cuke bg-cuke/15 text-cuke"
+              : "border-skin-line text-muted hover:text-ink"
+          }`}
+        >
+          <EyeOff size={13} />
+          거래완료 숨기기
+        </button>
+      </div>
 
       {isLoading && (
         <div className="flex items-center justify-center py-20">
@@ -145,6 +179,13 @@ export default function ChatsPage() {
       {!isLoading && rooms.length > 0 && (
         <div className="flex flex-col gap-2">
           {[...rooms]
+            .filter((r) => {
+              // 내가 지운 대화는 감춘다 (그 뒤 새 메시지가 오면 다시 보인다)
+              const hiddenAt = r.hiddenAt?.[user?.email || ""] ?? 0;
+              if (hiddenAt && r.lastAt <= hiddenAt) return false;
+              if (hideClosed && closedStatusOf(r)) return false;
+              return true;
+            })
             .sort((a, b) => {
               // 종료된 대화는 아래로 내린다
               const ca = closedStatusOf(a) ? 1 : 0;
@@ -200,6 +241,21 @@ export default function ChatsPage() {
                     )}
                     <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted">
                       <MessageCircle size={11} /> {room.msgCount}
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="이 대화 목록에서 지우기"
+                      onClick={(e) => { e.stopPropagation(); hideRoom(room); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.stopPropagation();
+                          hideRoom(room);
+                        }
+                      }}
+                      className="mt-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-skin-line text-muted transition-colors hover:border-red-500/50 hover:text-red-400"
+                    >
+                      <X size={12} />
                     </span>
                   </div>
                 </div>
