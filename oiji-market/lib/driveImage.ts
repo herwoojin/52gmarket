@@ -46,7 +46,10 @@ export function getImgSrc(rawUrl: string | undefined): string {
   if (!url) return "";
   if (!url.includes("drive.google.com")) return url;
   const id = extractFileId(url);
-  return id ? `/api/img?id=${encodeURIComponent(id)}` : "";
+  
+  // Apps Script 프록시 대신 구글 드라이브 썸네일 전용 엔드포인트를 직접 호출합니다.
+  // 이 엔드포인트는 용량이 최적화되어 있고, CDN 캐시를 타서 로딩이 압도적으로 빠릅니다.
+  return id ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1000` : "";
 }
 
 /** 기존 호출부 호환용 — 즉시 주소를 돌려준다 */
