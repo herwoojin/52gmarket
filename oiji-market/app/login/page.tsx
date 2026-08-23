@@ -173,26 +173,22 @@ export default function LoginPage() {
               autoFocus
               className="mb-2 w-full rounded-2xl border border-skin-line bg-skin-1 px-4 py-4 text-[16px] text-ink outline-none transition-colors placeholder:text-muted/50 focus:border-cuke"
             />
-            {companyName ? (
-              <p className="mb-6 flex items-center gap-1.5 text-[12px] font-bold text-cuke">
+            {companyName && (
+              <p className="mb-2 flex items-center gap-1.5 text-[12px] font-bold text-cuke">
                 <span>✓</span> {companyName} 계정으로 확인됐어요
               </p>
-            ) : (
-              <details className="mb-6 text-[12px] text-muted">
-                <summary className="cursor-pointer list-none">
-                  GS 계열사 이메일로 인증번호가 발송됩니다
-                  <span className="ml-1 underline">사용 가능 도메인 보기</span>
-                </summary>
-                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-xl bg-skin-1 p-3 text-[11px]">
-                  {Object.entries(ALLOWED_EMAIL_DOMAINS).map(([domain, name]) => (
-                    <div key={domain} className="flex flex-col">
-                      <span className="font-semibold text-ink">{name}</span>
-                      <span className="text-muted">@{domain}</span>
-                    </div>
-                  ))}
-                </div>
-              </details>
             )}
+            <p className="mb-2 text-[12px] text-muted">
+              GS 계열사 이메일로 인증번호가 발송됩니다
+            </p>
+            <div className="mb-6 grid grid-cols-2 gap-x-3 gap-y-1 rounded-xl border border-skin-line bg-skin-1 p-3 text-[11px]">
+              {Object.entries(ALLOWED_EMAIL_DOMAINS).map(([domain, name]) => (
+                <div key={domain} className="flex flex-col">
+                  <span className="font-semibold text-ink">{name}</span>
+                  <span className="text-muted">@{domain}</span>
+                </div>
+              ))}
+            </div>
 
             <button
               onClick={handleSendOtp}
