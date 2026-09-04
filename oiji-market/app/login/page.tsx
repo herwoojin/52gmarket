@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Mail, KeyRound, Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { ALLOWED_EMAIL_DOMAINS, isAllowedEmail, getCompanyName } from "@/types";
-import { fetchAppsScript } from "@/lib/appsScript";
+import { fetchAppsScript, describeAppsScriptError } from "@/lib/appsScript";
 import { signInToFirebase } from "@/lib/firebase";
 
 const APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || "";
@@ -70,8 +70,8 @@ export default function LoginPage() {
       } else {
         toast.error(res.error || "발송에 실패했어요");
       }
-    } catch {
-      toast.error("네트워크 오류. 다시 시도해주세요.");
+    } catch (err) {
+      toast.error(describeAppsScriptError(err));
     } finally {
       setSending(false);
     }
@@ -133,8 +133,8 @@ export default function LoginPage() {
         setCode(["", "", "", "", "", ""]);
         codeRefs.current[0]?.focus();
       }
-    } catch {
-      toast.error("네트워크 오류. 다시 시도해주세요.");
+    } catch (err) {
+      toast.error(describeAppsScriptError(err));
     } finally {
       setVerifying(false);
     }
